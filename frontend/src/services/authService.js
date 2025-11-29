@@ -7,7 +7,7 @@ import {
   signOutUser,
   auth,
   onAuthStateChanged
-} from '../../../backend/firebase.js';
+} from '@/lib/firebase.js';
 
 /**
  * Sign in with email and password

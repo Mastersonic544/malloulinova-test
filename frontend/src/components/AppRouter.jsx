@@ -4,7 +4,7 @@ import PublicSite from '../pages/PublicSite.jsx';
 import AdminLogin from '../pages/AdminLogin.jsx';
 import MainDashboard from '../admin/MainDashboard.jsx';
 import Contact from '../pages/Contact.jsx';
-import { auth, onAuthStateChanged } from '../../../backend/firebase.js';
+import { auth, onAuthStateChanged } from '@/lib/firebase.js';
 import { useContentData } from '../data/content.js';
 import ArticleView from '../pages/ArticleView.jsx';
 import { makeShortDescription } from '../utils/preview.js';
