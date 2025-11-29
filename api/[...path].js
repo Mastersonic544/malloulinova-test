@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { nanoid } from 'nanoid';
+import { randomUUID } from 'crypto';
 import Groq from 'groq-sdk';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -206,6 +206,56 @@ export default async function handler(req, res) {
       return res.status(200).json(mapped);
     }
 
+    // GET /api/tags - list tags
+    if (route === 'tags' && req.method === 'GET') {
+      const { data, error } = await supabase
+        .from('tags')
+        .select('*')
+        .order('name', { ascending: true });
+      if (error) throw error;
+      return res.status(200).json(data || []);
+    }
+
+    // GET /api/partners - list partners
+    if (route === 'partners' && req.method === 'GET') {
+      const { data, error } = await supabase
+        .from('partners')
+        .select('*')
+        .order('name', { ascending: true });
+      if (error) throw error;
+      return res.status(200).json(data || []);
+    }
+
+    // GET /api/team - list team members
+    if (route === 'team' && req.method === 'GET') {
+      const { data, error } = await supabase
+        .from('team')
+        .select('*')
+        .order('name', { ascending: true });
+      if (error) throw error;
+      return res.status(200).json(data || []);
+    }
+
+    // GET /api/services - list services
+    if (route === 'services' && req.method === 'GET') {
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .order('name', { ascending: true });
+      if (error) throw error;
+      return res.status(200).json(data || []);
+    }
+
+    // GET /api/technologies - list technologies
+    if (route === 'technologies' && req.method === 'GET') {
+      const { data, error } = await supabase
+        .from('technologies')
+        .select('*')
+        .order('name', { ascending: true });
+      if (error) throw error;
+      return res.status(200).json(data || []);
+    }
+
     // POST /api/articles - Create new article
     if (route === 'articles' && req.method === 'POST') {
       const { fields, files } = await parseMultipartForm(req);
@@ -216,7 +266,7 @@ export default async function handler(req, res) {
       const category = fields.category || 'Uncategorized';
       const isFeatured = String(fields.isFeatured || 'false') === 'true';
 
-      const id = nanoid();
+      const id = randomUUID();
       const now = new Date().toISOString();
 
       const findFile = (name) => files.find(f => f.fieldname === name);
@@ -326,7 +376,7 @@ export default async function handler(req, res) {
           const { data: newConv } = await supabase
             .from('chat_conversations')
             .insert({
-              id: nanoid(),
+              id: randomUUID(),
               session_id: sessionId,
               messages: []
             })
