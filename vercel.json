@@ -23,19 +23,6 @@
       "dest": "/index.html"
     }
   ],
-  "env": {
-    "SUPABASE_URL": "@supabase_url",
-    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key",
-    "SUPABASE_MEDIA_BUCKET": "@supabase_media_bucket",
-    "GROQ_API_KEY": "@groq_api_key",
-    "GROQ_MODEL": "@groq_model",
-    "GROQ_MAX_TOKENS": "@groq_max_tokens",
-    "CONTACT_TO": "@contact_to",
-    "SMTP_HOST": "@smtp_host",
-    "SMTP_PORT": "@smtp_port",
-    "SMTP_USER": "@smtp_user",
-    "SMTP_PASS": "@smtp_pass"
-  },
   "build": {
     "env": {
       "NODE_VERSION": "18"
