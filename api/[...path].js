@@ -169,6 +169,44 @@ export default async function handler(req, res) {
       return res.status(500).json({ message: 'Supabase not configured' });
     }
 
+    // POST /api/analytics/pageview - record pageviews (best-effort)
+    if (route === 'analytics/pageview' && req.method === 'POST') {
+      const { page, referrer, sessionId, userAgent } = req.body || {};
+      const payload = {
+        id: randomUUID(),
+        page: page || '',
+        referrer: referrer || '',
+        session_id: sessionId || null,
+        user_agent: userAgent || (req.headers['user-agent'] || ''),
+        created_at: new Date().toISOString()
+      };
+      try {
+        await supabase.from('analytics_pageviews').insert(payload);
+      } catch (e) {
+        console.warn('analytics_pageview insert failed (continuing):', e.message);
+      }
+      return res.status(200).json({ ok: true });
+    }
+
+    // POST /api/analytics/hover - record hover events (best-effort)
+    if (route === 'analytics/hover' && req.method === 'POST') {
+      const { element, section, page, sessionId } = req.body || {};
+      const payload = {
+        id: randomUUID(),
+        element: element || null,
+        section: section || null,
+        page: page || '',
+        session_id: sessionId || null,
+        created_at: new Date().toISOString()
+      };
+      try {
+        await supabase.from('analytics_hovers').insert(payload);
+      } catch (e) {
+        console.warn('analytics_hover insert failed (continuing):', e.message);
+      }
+      return res.status(200).json({ ok: true });
+    }
+
     // Derive route from URL path to be robust across runtimes
     let route = '';
     try {
@@ -243,14 +281,21 @@ export default async function handler(req, res) {
       return res.status(200).json(data || []);
     }
 
-    // GET /api/services - list services
+    // GET /api/services - list services (map to frontend fields)
     if (route === 'services' && req.method === 'GET') {
       const { data, error } = await supabase
         .from('services')
         .select('*')
-        .order('name', { ascending: true });
+        .order('title', { ascending: true });
       if (error) throw error;
-      return res.status(200).json(data || []);
+      const mapped = (data || []).map((r) => ({
+        id: r.id,
+        title: r.title || 'Service',
+        description: r.description || r.short_description || '',
+        image_url: r.image_url || r.thumbnail_url || null,
+        visible: r.visible !== false,
+      }));
+      return res.status(200).json(mapped);
     }
 
     // GET /api/technologies - list technologies
@@ -259,6 +304,16 @@ export default async function handler(req, res) {
         .from('technologies')
         .select('*')
         .order('name', { ascending: true });
+      if (error) throw error;
+      return res.status(200).json(data || []);
+    }
+
+    // GET /api/faqs - list FAQs
+    if (route === 'faqs' && req.method === 'GET') {
+      const { data, error } = await supabase
+        .from('faqs')
+        .select('*')
+        .order('created_at', { ascending: true });
       if (error) throw error;
       return res.status(200).json(data || []);
     }
