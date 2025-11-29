@@ -1,0 +1,23 @@
+<svg width="220" height="50" viewBox="0 0 220 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Logo Mark - Clean Hexagonal Design -->
+  <g id="logomark">
+    <!-- Larger, more prominent hexagon -->
+    <path d="M12 11L22 6L32 11L32 23L22 28L12 23Z" stroke="#447D9B" stroke-width="3.5" fill="none"/>
+    
+    <!-- Larger central core for more prominence -->
+    <circle cx="22" cy="17" r="3" fill="#FE7743"/>
+  </g>
+  
+  <!-- Company Name -->
+  <g id="wordmark">
+    <!-- MALLOULINOVA -->
+    <text x="45" y="22" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700" fill="#273F4F">
+      MALLOULINOVA
+    </text>
+    
+    <!-- Tagline -->
+    <text x="45" y="35" font-family="Arial, Helvetica, sans-serif" font-size="8" font-weight="400" fill="#447D9B" opacity="0.8">
+      EMBEDDED SYSTEMS &amp; IoT SOLUTIONS
+    </text>
+  </g>
+</svg>

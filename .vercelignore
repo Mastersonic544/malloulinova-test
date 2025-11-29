@@ -1,0 +1,11 @@
+node_modules
+.env
+.env.local
+.git
+.gitignore
+backend/
+netlify/
+netlify.toml
+*.log
+.DS_Store
+README.md

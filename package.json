@@ -1,0 +1,43 @@
+{
+  "name": "malloulinova-project",
+  "version": "1.0.0",
+  "description": "B2B IoT consulting site with Firebase backend and React frontend",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "node backend/server.js",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "cd frontend && npm install && npm run build",
+    "vercel-build": "cd frontend && npm install && npm run build",
+    "install:all": "npm install && cd frontend && npm install",
+    "test": "cd frontend && npm run test"
+  },
+  "keywords": [
+    "react",
+    "firebase",
+    "iot",
+    "consulting",
+    "b2b"
+  ],
+  "author": "Malloulinova Team",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.80.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "firebase": "^12.5.0",
+    "formidable": "^3.5.1",
+    "groq-sdk": "^0.7.0",
+    "lambda-multipart-parser": "^1.0.1",
+    "multer": "^2.0.2",
+    "nanoid": "^5.1.6",
+    "nodemailer": "^7.0.10"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
