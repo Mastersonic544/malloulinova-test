@@ -7,6 +7,16 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut
 } from 'firebase/auth';
+import {
+  getDatabase,
+  ref as dbRef,
+  onValue as dbOnValue,
+  set as dbSet,
+  update as dbUpdate,
+  remove as dbRemove,
+  serverTimestamp as dbServerTimestamp,
+  push as dbPush
+} from 'firebase/database';
 
 const cfg = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -20,12 +30,15 @@ const cfg = {
 const hasAllCfg = Object.values(cfg).every((v) => typeof v === 'string' && v.length > 0);
 
 let auth;
+let db;
 if (typeof window !== 'undefined' && hasAllCfg) {
   const app = getApps().length ? getApps()[0] : initializeApp(cfg);
   auth = getAuth(app);
+  db = getDatabase(app);
 } else {
   // Safe fallbacks to avoid breaking builds when env is missing
   auth = { currentUser: null };
+  db = null;
 }
 
 // Match the names used by existing code
@@ -64,3 +77,41 @@ const signOutUser = () => {
 };
 
 export { auth, onAuthStateChanged, signInUser, createUser, signOutUser };
+
+// ==== Realtime Database Helpers (guarded) ====
+const ref = (database, path) => {
+  if (db) return dbRef(db, path);
+  throw new Error('DB not configured');
+};
+
+const onValue = (reference, callback, onError) => {
+  if (db && reference) return dbOnValue(reference, callback, onError);
+  // No-op: invoke callback with empty object to avoid crashes
+  try { if (typeof callback === 'function') callback({ val: () => null }); } catch {}
+  return () => {};
+};
+
+const set = (reference, value) => {
+  if (db && reference) return dbSet(reference, value);
+  return Promise.reject(new Error('DB not configured'));
+};
+
+const update = (reference, value) => {
+  if (db && reference) return dbUpdate(reference, value);
+  return Promise.reject(new Error('DB not configured'));
+};
+
+const remove = (reference) => {
+  if (db && reference) return dbRemove(reference);
+  return Promise.reject(new Error('DB not configured'));
+};
+
+const serverTimestamp = () => dbServerTimestamp();
+
+const getProjectsRTDBRef = (userId) => {
+  if (!userId) throw new Error('userId is required');
+  if (!db) throw new Error('DB not configured');
+  return dbRef(db, `users/${userId}/projects`);
+};
+
+export { db, ref, onValue, set, update, remove, serverTimestamp, getProjectsRTDBRef };

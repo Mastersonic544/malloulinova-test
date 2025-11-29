@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useUser } from '../components/AppRouter.jsx';
-import { signOutUser } from '../../../backend/firebase.js';
+import { signOutUser } from '@/lib/firebase.js';
 import AnalyticsSection from './AnalyticsSection.jsx';
 import ArticlesSection from './ArticlesSection.jsx';
 import TagsSection from './TagsSection.jsx';

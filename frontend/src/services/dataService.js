@@ -10,7 +10,7 @@ import {
   remove,
   serverTimestamp,
   getProjectsRTDBRef
-} from '../../../backend/firebase.js';
+} from '@/lib/firebase.js';
 
 /**
  * Listens for real-time changes to projects and executes callback with clean array

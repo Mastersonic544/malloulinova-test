@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useUser } from '../components/AppRouter.jsx';
-import { signInUser, createUser } from '../../../backend/firebase.js';
+import { signInUser, createUser } from '@/lib/firebase.js';
 
 const AdminLogin = ({ onLoginSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
