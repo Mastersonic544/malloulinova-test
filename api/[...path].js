@@ -177,15 +177,33 @@ export default async function handler(req, res) {
       return res.status(200).json({ status: 'ok' });
     }
 
-    // GET /api/articles - Fetch all articles
+    // GET /api/articles - Fetch all articles (map DB snake_case -> API camelCase)
     if (route === 'articles' && req.method === 'GET') {
       const { data, error } = await supabase
         .from('articles')
         .select('*')
-        .order('createdAt', { ascending: false });
-      
+        .order('created_at', { ascending: false });
+
       if (error) throw error;
-      return res.status(200).json(data || []);
+
+      const mapped = (data || []).map((r) => ({
+        id: r.id,
+        title: r.title,
+        shortDescription: r.short_description || '',
+        body: r.body || '',
+        category: r.category || 'Uncategorized',
+        thumbnailUrl: r.thumbnail_url || null,
+        videoUrl: r.video_url || null,
+        galleryImageUrls: Array.isArray(r.gallery_image_urls) ? r.gallery_image_urls : [],
+        documentUrls: Array.isArray(r.document_urls) ? r.document_urls : [],
+        isFeatured: !!r.is_featured,
+        tags: Array.isArray(r.tags) ? r.tags : [],
+        viewCount: typeof r.view_count === 'number' ? r.view_count : 0,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+      }));
+
+      return res.status(200).json(mapped);
     }
 
     // POST /api/articles - Create new article
