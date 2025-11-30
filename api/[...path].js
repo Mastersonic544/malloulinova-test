@@ -169,6 +169,16 @@ export default async function handler(req, res) {
       return res.status(500).json({ message: 'Supabase not configured' });
     }
 
+    // Derive route from URL path to be robust across runtimes
+    let route = '';
+    try {
+      const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+      route = url.pathname.replace(/^\/?api\/?/, '').replace(/^\/+|\/+$/g, '');
+    } catch (_) {
+      const { path } = req.query || {};
+      route = Array.isArray(path) ? path.join('/') : (path || '');
+    }
+
     // POST /api/analytics/pageview - record pageviews (best-effort)
     if (route === 'analytics/pageview' && req.method === 'POST') {
       const { page, referrer, sessionId, userAgent } = req.body || {};
@@ -207,15 +217,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    // Derive route from URL path to be robust across runtimes
-    let route = '';
-    try {
-      const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-      route = url.pathname.replace(/^\/?api\/?/, '').replace(/^\/+|\/+$/g, '');
-    } catch (_) {
-      const { path } = req.query || {};
-      route = Array.isArray(path) ? path.join('/') : (path || '');
-    }
+    
 
     // Health check
     if (route === 'health' && req.method === 'GET') {
