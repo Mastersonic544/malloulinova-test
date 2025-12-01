@@ -217,6 +217,163 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
+    // POST /api/analytics/click - record click events (for heatmap)
+    if (route === 'analytics/click' && req.method === 'POST') {
+      const {
+        pagePath,
+        xPosition,
+        yPosition,
+        elementType,
+        elementText,
+        elementId,
+        elementClass,
+        viewportWidth,
+        viewportHeight,
+        scrollDepth,
+        sectionId,
+        sessionId,
+        visitorId
+      } = req.body || {};
+
+      const payload = {
+        id: randomUUID(),
+        page_path: pagePath || '',
+        x_pct: typeof xPosition === 'number' ? xPosition : null,
+        y_pct: typeof yPosition === 'number' ? yPosition : null,
+        element_type: elementType || null,
+        element_text: elementText || null,
+        element_id: elementId || null,
+        element_class: elementClass || null,
+        viewport_width: typeof viewportWidth === 'number' ? viewportWidth : null,
+        viewport_height: typeof viewportHeight === 'number' ? viewportHeight : null,
+        scroll_depth_pct: typeof scrollDepth === 'number' ? scrollDepth : null,
+        section_id: sectionId || null,
+        session_id: sessionId || null,
+        visitor_id: visitorId || null,
+        created_at: new Date().toISOString()
+      };
+      try {
+        await supabase.from('analytics_clicks').insert(payload);
+      } catch (e) {
+        console.warn('analytics_click insert failed (continuing):', e.message);
+      }
+      return res.status(200).json({ ok: true });
+    }
+
+    // GET /api/analytics/heatmap?pagePath=/&month=YYYY-MM (optional)
+    if (route.startsWith('analytics/heatmap') && req.method === 'GET') {
+      const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+      const pagePath = url.searchParams.get('pagePath') || '/';
+      const month = url.searchParams.get('month'); // YYYY-MM
+
+      let query = supabase
+        .from('analytics_clicks')
+        .select('*')
+        .eq('page_path', pagePath)
+        .order('created_at', { ascending: true });
+
+      if (month && /^\d{4}-\d{2}$/.test(month)) {
+        // Filter by month via string prefix match on created_at if stored as ISO string
+        query = query.like('created_at', `${month}%`);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const clicks = (data || []).map((r) => ({
+        id: r.id,
+        pagePath: r.page_path,
+        xPosition: r.x_pct,
+        yPosition: r.y_pct,
+        elementType: r.element_type,
+        elementText: r.element_text,
+        elementId: r.element_id,
+        elementClass: r.element_class,
+        viewportWidth: r.viewport_width,
+        viewportHeight: r.viewport_height,
+        scrollDepth: r.scroll_depth_pct,
+        sectionId: r.section_id,
+        createdAt: r.created_at
+      }));
+
+      // Build simple section summary counts
+      const sectionSummaryMap = new Map();
+      for (const c of clicks) {
+        const key = c.sectionId || 'unknown';
+        sectionSummaryMap.set(key, (sectionSummaryMap.get(key) || 0) + 1);
+      }
+      const sectionSummary = Array.from(sectionSummaryMap.entries()).map(([sectionId, count]) => ({ sectionId, count }));
+      const maxSectionCount = sectionSummary.reduce((m, s) => Math.max(m, s.count), 0);
+
+      return res.status(200).json({
+        pagePath,
+        clicks,
+        totalClicks: clicks.length,
+        sectionSummary,
+        maxSectionCount
+      });
+    }
+
+    // POST /api/analytics/like - register a like for an article
+    if (route === 'analytics/like' && req.method === 'POST') {
+      const { articleId, sessionId, visitorId } = req.body || {};
+      if (!articleId) return res.status(400).json({ message: 'articleId required' });
+      try {
+        await supabase.from('article_likes').insert({
+          id: randomUUID(),
+          article_id: articleId,
+          session_id: sessionId || null,
+          visitor_id: visitorId || null,
+          created_at: new Date().toISOString()
+        });
+      } catch (e) {
+        console.warn('like insert failed (continuing):', e.message);
+      }
+      // Return updated total
+      const { data: agg } = await supabase
+        .from('article_likes')
+        .select('article_id', { count: 'exact', head: true })
+        .eq('article_id', articleId);
+      return res.status(200).json({ liked: true, totalLikes: agg?.length ?? (typeof agg?.count === 'number' ? agg.count : null) });
+    }
+
+    // GET /api/analytics/likes?articleId=...
+    if (route === 'analytics/likes' && req.method === 'GET') {
+      const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+      const articleId = url.searchParams.get('articleId');
+      if (!articleId) return res.status(400).json({ message: 'articleId required' });
+      const { count, error } = await supabase
+        .from('article_likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('article_id', articleId);
+      if (error) throw error;
+      return res.status(200).json({ totalLikes: count || 0 });
+    }
+
+    // GET /api/analytics/dashboard - simple aggregates placeholder
+    if (route.startsWith('analytics/dashboard') && req.method === 'GET') {
+      // Simple counts from pageviews over last 30 days as a placeholder
+      const since = new Date();
+      since.setDate(since.getDate() - 30);
+      const { data, error } = await supabase
+        .from('analytics_pageviews')
+        .select('*')
+        .gte('created_at', since.toISOString());
+      if (error) throw error;
+
+      const totalViews30Days = (data || []).length;
+      return res.status(200).json({
+        kpis: {
+          totalViews30Days,
+          totalVisitors30Days: totalViews30Days // placeholder
+        },
+        dailyStats: [],
+        topPages: [],
+        devices: { desktop: 0, mobile: 0, tablet: 0 },
+        locations: []
+      });
+    }
+
     
 
     // Health check
