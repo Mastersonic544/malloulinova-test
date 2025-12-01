@@ -383,13 +383,47 @@ export default async function handler(req, res) {
 
     // GET /api/config/firebase - expose client-safe Firebase config
     if (route === 'config/firebase' && req.method === 'GET') {
+      const pick = (...keys) => keys.find((k) => process.env[k] && String(process.env[k]).length > 0) || '';
       const cfg = {
-        apiKey: process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY || '',
-        authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || process.env.FIREBASE_AUTH_DOMAIN || '',
-        projectId: process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || '',
-        storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET || '',
-        messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || process.env.FIREBASE_MESSAGING_SENDER_ID || '',
-        appId: process.env.VITE_FIREBASE_APP_ID || process.env.FIREBASE_APP_ID || ''
+        apiKey: pick(
+          'VITE_FIREBASE_API_KEY',
+          'NEXT_PUBLIC_FIREBASE_API_KEY',
+          'REACT_APP_FIREBASE_API_KEY',
+          'FIREBASE_API_KEY',
+          'FIREBASE_APIKEY'
+        ),
+        authDomain: pick(
+          'VITE_FIREBASE_AUTH_DOMAIN',
+          'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
+          'REACT_APP_FIREBASE_AUTH_DOMAIN',
+          'FIREBASE_AUTH_DOMAIN',
+          'FIREBASE_AUTHDOMAIN'
+        ),
+        projectId: pick(
+          'VITE_FIREBASE_PROJECT_ID',
+          'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+          'REACT_APP_FIREBASE_PROJECT_ID',
+          'FIREBASE_PROJECT_ID',
+          'FIREBASE_PROJECTID'
+        ),
+        storageBucket: pick(
+          'VITE_FIREBASE_STORAGE_BUCKET',
+          'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
+          'REACT_APP_FIREBASE_STORAGE_BUCKET',
+          'FIREBASE_STORAGE_BUCKET'
+        ),
+        messagingSenderId: pick(
+          'VITE_FIREBASE_MESSAGING_SENDER_ID',
+          'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+          'REACT_APP_FIREBASE_MESSAGING_SENDER_ID',
+          'FIREBASE_MESSAGING_SENDER_ID'
+        ),
+        appId: pick(
+          'VITE_FIREBASE_APP_ID',
+          'NEXT_PUBLIC_FIREBASE_APP_ID',
+          'REACT_APP_FIREBASE_APP_ID',
+          'FIREBASE_APP_ID'
+        )
       };
       return res.status(200).json(cfg);
     }
