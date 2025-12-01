@@ -74,16 +74,21 @@ const ensureInit = async () => {
 
 // Match the names used by existing code
 const onAuthStateChanged = (authInstance, cb) => {
+  // If a specific auth instance is provided, try to attach directly
   if (authInstance && authInstance !== auth) {
-    // Use provided instance if passed
     try { return firebaseOnAuthStateChanged(authInstance, cb); } catch {}
   }
-  if (hasCore(cfg) && auth && typeof firebaseOnAuthStateChanged === 'function') {
-    return firebaseOnAuthStateChanged(auth, cb);
-  }
-  // No-op fallback
-  if (typeof cb === 'function') cb(null);
-  return () => {};
+  // Defer subscription until runtime init completes
+  let unsub = () => {};
+  (async () => {
+    try { await ensureInit(); } catch {}
+    if (hasCore(cfg) && auth && typeof firebaseOnAuthStateChanged === 'function') {
+      unsub = firebaseOnAuthStateChanged(auth, cb);
+    } else if (typeof cb === 'function') {
+      cb(null);
+    }
+  })();
+  return () => { try { unsub(); } catch {} };
 };
 
 const signInUser = async (email, password) => {
