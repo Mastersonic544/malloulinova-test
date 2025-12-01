@@ -27,11 +27,13 @@ const cfg = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-const hasAllCfg = Object.values(cfg).every((v) => typeof v === 'string' && v.length > 0);
+// Only the following are strictly required for Auth to work
+const hasAuthCfg = ['apiKey', 'authDomain', 'projectId', 'appId']
+  .every((k) => typeof cfg[k] === 'string' && cfg[k].length > 0);
 
 let auth;
 let db;
-if (typeof window !== 'undefined' && hasAllCfg) {
+if (typeof window !== 'undefined' && hasAuthCfg) {
   const app = getApps().length ? getApps()[0] : initializeApp(cfg);
   auth = getAuth(app);
   db = getDatabase(app);
@@ -47,7 +49,7 @@ const onAuthStateChanged = (authInstance, cb) => {
     // Use provided instance if passed
     try { return firebaseOnAuthStateChanged(authInstance, cb); } catch {}
   }
-  if (hasAllCfg && auth && typeof firebaseOnAuthStateChanged === 'function') {
+  if (hasAuthCfg && auth && typeof firebaseOnAuthStateChanged === 'function') {
     return firebaseOnAuthStateChanged(auth, cb);
   }
   // No-op fallback
@@ -56,21 +58,21 @@ const onAuthStateChanged = (authInstance, cb) => {
 };
 
 const signInUser = (email, password) => {
-  if (hasAllCfg && auth && auth.currentUser !== undefined) {
+  if (hasAuthCfg && auth && auth.currentUser !== undefined) {
     return signInWithEmailAndPassword(auth, email, password);
   }
   return Promise.reject(new Error('Auth not configured'));
 };
 
 const createUser = (email, password) => {
-  if (hasAllCfg && auth && auth.currentUser !== undefined) {
+  if (hasAuthCfg && auth && auth.currentUser !== undefined) {
     return createUserWithEmailAndPassword(auth, email, password);
   }
   return Promise.reject(new Error('Auth not configured'));
 };
 
 const signOutUser = () => {
-  if (hasAllCfg && auth && auth.currentUser !== undefined) {
+  if (hasAuthCfg && auth && auth.currentUser !== undefined) {
     return firebaseSignOut(auth);
   }
   return Promise.resolve();
