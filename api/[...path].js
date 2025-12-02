@@ -163,6 +163,10 @@ export default async function handler(req, res) {
   Object.keys(corsHeaders).forEach(key => {
     res.setHeader(key, corsHeaders[key]);
   });
+  // Disable caching of API responses to avoid stale 304 results
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
 
   try {
     if (!supabase) {
