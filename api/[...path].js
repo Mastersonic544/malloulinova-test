@@ -185,13 +185,30 @@ export default async function handler(req, res) {
 
     // POST /api/analytics/pageview - record pageviews (best-effort)
     if (route === 'analytics/pageview' && req.method === 'POST') {
-      const { page, referrer, sessionId, userAgent } = req.body || {};
+      const {
+        pagePath,
+        pageTitle,
+        referrer,
+        sessionId,
+        userAgent,
+        deviceType,
+        country,
+        city,
+        visitorId
+      } = req.body || {};
+      // try to infer country if not provided (Vercel header)
+      const hdrCountry = req.headers['x-vercel-ip-country'] || req.headers['x-country'] || '';
       const payload = {
         id: randomUUID(),
-        page: page || '',
+        page_path: pagePath || '',
+        page_title: pageTitle || null,
         referrer: referrer || '',
         session_id: sessionId || null,
+        visitor_id: visitorId || null,
         user_agent: userAgent || (req.headers['user-agent'] || ''),
+        device_type: deviceType || null,
+        country: country || hdrCountry || null,
+        city: city || null,
         created_at: new Date().toISOString()
       };
       try {
@@ -376,6 +393,7 @@ export default async function handler(req, res) {
       let bounceRate = 0;
       let avgSessionDuration = '0:00';
       let topPages = [];
+      let locations = [];
 
       // Try detailed pageviews table first
       let usedMonthlyFallback = false;
@@ -415,14 +433,21 @@ export default async function handler(req, res) {
 
         // Build top pages by counts
         const counts = new Map();
+        const countryCounts = new Map();
         for (const r of rows) {
-          const p = r.page || r.page_path || '/';
+          const p = r.page_path || r.page || '/';
           counts.set(p, (counts.get(p) || 0) + 1);
+          const c = r.country || 'Unknown';
+          countryCounts.set(c, (countryCounts.get(c) || 0) + 1);
         }
         topPages = Array.from(counts.entries())
           .map(([page_path, views]) => ({ page_path, view_count: views }))
           .sort((a, b) => b.view_count - a.view_count)
           .slice(0, 10);
+        locations = Array.from(countryCounts.entries())
+          .map(([country, visits]) => ({ country, visits }))
+          .sort((a, b) => b.visits - a.visits)
+          .slice(0, 20);
       } catch (_) {
         usedMonthlyFallback = true;
       }
@@ -444,6 +469,7 @@ export default async function handler(req, res) {
           todayViews = 0; // no daily resolution
           todayVisitors = 0;
           topPages = []; // not available from monthly aggregate
+          locations = [];
         } catch (_) {
           // keep defaults (zeros)
         }
@@ -463,7 +489,7 @@ export default async function handler(req, res) {
         dailyStats: [],
         topPages,
         devices: { desktop: 0, mobile: 0, tablet: 0 },
-        locations: []
+        locations
       });
     }
 
@@ -597,32 +623,32 @@ export default async function handler(req, res) {
       return res.status(200).json(data || []);
     }
 
-    // GET /api/partners - list partners
+    // GET /api/partners - list partners (order by position ASC)
     if (route === 'partners' && req.method === 'GET') {
       const { data, error } = await supabase
         .from('partners')
         .select('*')
-        .order('name', { ascending: true });
+        .order('position', { ascending: true });
       if (error) throw error;
       return res.status(200).json(data || []);
     }
 
-    // GET /api/team - list team members
+    // GET /api/team - list team members (order by position ASC)
     if (route === 'team' && req.method === 'GET') {
       const { data, error } = await supabase
         .from('team')
         .select('*')
-        .order('name', { ascending: true });
+        .order('position', { ascending: true });
       if (error) throw error;
       return res.status(200).json(data || []);
     }
 
-    // GET /api/services - list services (map to frontend fields)
+    // GET /api/services - list services (map to frontend fields, order by position ASC)
     if (route === 'services' && req.method === 'GET') {
       const { data, error } = await supabase
         .from('services')
         .select('*')
-        .order('title', { ascending: true });
+        .order('position', { ascending: true });
       if (error) throw error;
       const mapped = (data || []).map((r) => ({
         id: r.id,
