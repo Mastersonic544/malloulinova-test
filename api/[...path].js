@@ -354,40 +354,110 @@ export default async function handler(req, res) {
       return res.status(200).json({ totalLikes: count || 0 });
     }
 
-    // GET /api/analytics/dashboard - simple aggregates with fallbacks
+    // GET /api/analytics/dashboard - aggregates with safe defaults
     if (route.startsWith('analytics/dashboard') && req.method === 'GET') {
+      const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+      const monthParam = url.searchParams.get('month'); // YYYY-MM optional
+      const now = new Date();
       const since = new Date();
       since.setDate(since.getDate() - 30);
+
+      // Defaults to avoid NaN in UI
+      let todayViews = 0;
+      let todayVisitors = 0;
       let totalViews30Days = 0;
+      let avgViewsPerDay = 0;
+      let viewsGrowth = 0;
+      let visitorsGrowth = 0;
+      let bounceRate = 0;
+      let avgSessionDuration = '0:00';
+      let topPages = [];
+
+      // Try detailed pageviews table first
+      let usedMonthlyFallback = false;
       try {
-        const { data, error } = await supabase
+        // If month provided, bound to that month
+        let query = supabase
           .from('analytics_pageviews')
-          .select('*')
-          .gte('created_at', since.toISOString());
+          .select('*');
+        if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
+          query = query.like('created_at', `${monthParam}%`);
+        } else {
+          query = query.gte('created_at', since.toISOString());
+        }
+        const { data, error } = await query;
         if (error) throw error;
-        totalViews30Days = (data || []).length;
+
+        const rows = Array.isArray(data) ? data : [];
+        totalViews30Days = rows.length;
+        avgViewsPerDay = Math.round(totalViews30Days / 30);
+
+        // Today views (UTC date prefix compare)
+        const todayPrefix = now.toISOString().slice(0, 10);
+        todayViews = rows.filter(r => (r.created_at || '').startsWith(todayPrefix)).length;
+
+        // Visitors approximated by unique session_id (if present)
+        const todaySessions = new Set();
+        const monthSessions = new Set();
+        for (const r of rows) {
+          const sid = r.session_id || null;
+          if (!sid) continue;
+          monthSessions.add(sid);
+          if ((r.created_at || '').startsWith(todayPrefix)) todaySessions.add(sid);
+        }
+        todayVisitors = todaySessions.size;
+        // simple placeholder
+        visitorsGrowth = 0;
+
+        // Build top pages by counts
+        const counts = new Map();
+        for (const r of rows) {
+          const p = r.page || r.page_path || '/';
+          counts.set(p, (counts.get(p) || 0) + 1);
+        }
+        topPages = Array.from(counts.entries())
+          .map(([page_path, views]) => ({ page_path, view_count: views }))
+          .sort((a, b) => b.view_count - a.view_count)
+          .slice(0, 10);
       } catch (_) {
-        // Fallback to monthly aggregates if available
+        usedMonthlyFallback = true;
+      }
+
+      // Fallback: use monthly aggregate table if available
+      if (usedMonthlyFallback) {
         try {
           const ym = (d) => d.toISOString().slice(0,7); // YYYY-MM
-          const currentMonth = ym(new Date());
+          const currentMonth = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : ym(now);
           const prevMonth = ym(since);
           const { data } = await supabase
             .from('analytics_monthly')
             .select('*')
             .in('month', [prevMonth, currentMonth]);
-          totalViews30Days = (data || []).reduce((sum, r) => sum + (r.pageviews || r.views || 0), 0);
-        } catch (__) {
-          totalViews30Days = 0;
+          const rows = Array.isArray(data) ? data : [];
+          // Sum views-like fields
+          totalViews30Days = rows.reduce((sum, r) => sum + (r.pageviews || r.views || 0), 0);
+          avgViewsPerDay = Math.round(totalViews30Days / 30);
+          todayViews = 0; // no daily resolution
+          todayVisitors = 0;
+          topPages = []; // not available from monthly aggregate
+        } catch (_) {
+          // keep defaults (zeros)
         }
       }
+
       return res.status(200).json({
         kpis: {
+          todayViews,
+          viewsGrowth,
+          todayVisitors,
+          visitorsGrowth,
           totalViews30Days,
-          totalVisitors30Days: totalViews30Days
+          avgViewsPerDay,
+          bounceRate,
+          avgSessionDuration
         },
         dailyStats: [],
-        topPages: [],
+        topPages,
         devices: { desktop: 0, mobile: 0, tablet: 0 },
         locations: []
       });
