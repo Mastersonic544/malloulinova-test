@@ -36,7 +36,7 @@ const AnalyticsSection = ({ colors }) => {
       setError(null);
       try {
         const [dash, heat, top] = await Promise.all([
-          getDashboardData(selectedMonth),
+          getDashboardData(30),
           getHeatmapData('/', selectedMonth),
           fetchTopArticles(7, selectedMonth)
         ]);

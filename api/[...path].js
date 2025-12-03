@@ -183,7 +183,7 @@ export default async function handler(req, res) {
       route = Array.isArray(path) ? path.join('/') : (path || '');
     }
 
-    // POST /api/analytics/pageview - record pageviews (best-effort)
+    // POST /api/analytics/pageview - record pageviews (best-effort) -> primary table: page_views
     if (route === 'analytics/pageview' && req.method === 'POST') {
       const {
         pagePath,
@@ -203,18 +203,21 @@ export default async function handler(req, res) {
         page_path: pagePath || '',
         page_title: pageTitle || null,
         referrer: referrer || '',
-        session_id: sessionId || null,
-        visitor_id: visitorId || null,
         user_agent: userAgent || (req.headers['user-agent'] || ''),
         device_type: deviceType || null,
         country: country || hdrCountry || null,
         city: city || null,
+        session_id: sessionId || null,
+        visitor_id: visitorId || null,
         created_at: new Date().toISOString()
       };
       try {
-        await supabase.from('analytics_pageviews').insert(payload);
+        // primary table
+        await supabase.from('page_views').insert(payload);
       } catch (e) {
-        console.warn('analytics_pageview insert failed (continuing):', e.message);
+        // fallback to legacy table if present
+        try { await supabase.from('analytics_pageviews').insert(payload); }
+        catch (e2) { console.warn('pageview insert failed (continuing):', e.message, e2?.message); }
       }
       return res.status(200).json({ ok: true });
     }
@@ -238,7 +241,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    // POST /api/analytics/click - record click events (for heatmap)
+    // POST /api/analytics/click - record click events (for heatmap) -> primary table: click_events
     if (route === 'analytics/click' && req.method === 'POST') {
       const {
         pagePath,
@@ -274,9 +277,12 @@ export default async function handler(req, res) {
         created_at: new Date().toISOString()
       };
       try {
-        await supabase.from('analytics_clicks').insert(payload);
+        // primary table
+        await supabase.from('click_events').insert(payload);
       } catch (e) {
-        console.warn('analytics_click insert failed (continuing):', e.message);
+        // fallback to legacy table if present
+        try { await supabase.from('analytics_clicks').insert(payload); }
+        catch (e2) { console.warn('click insert failed (continuing):', e.message, e2?.message); }
       }
       return res.status(200).json({ ok: true });
     }
@@ -289,8 +295,9 @@ export default async function handler(req, res) {
 
       let clicks = [];
       try {
+        // primary: click_events; fallback to analytics_clicks
         let query = supabase
-          .from('analytics_clicks')
+          .from('click_events')
           .select('*')
           .eq('page_path', pagePath)
           .order('created_at', { ascending: true });
@@ -299,8 +306,18 @@ export default async function handler(req, res) {
           // Filter by month via string prefix match on created_at if stored as ISO string
           query = query.like('created_at', `${month}%`);
         }
-        const { data, error } = await query;
-        if (error) throw error;
+        let { data, error } = await query;
+        if (error) {
+          // fallback try
+          let q2 = supabase
+            .from('analytics_clicks')
+            .select('*')
+            .eq('page_path', pagePath)
+            .order('created_at', { ascending: true });
+          if (month && /^\d{4}-\d{2}$/.test(month)) q2 = q2.like('created_at', `${month}%`);
+          const r2 = await q2; data = r2.data; error = r2.error;
+          if (error) throw error;
+        }
         clicks = (data || []).map((r) => ({
           id: r.id,
           pagePath: r.page_path,
@@ -375,122 +392,140 @@ export default async function handler(req, res) {
       return res.status(200).json({ totalLikes: count || 0 });
     }
 
-    // GET /api/analytics/dashboard - aggregates with safe defaults
+    // GET /api/analytics/dashboard?period=30 - compute from daily_stats/top_pages; devices/locations from page_views
     if (route.startsWith('analytics/dashboard') && req.method === 'GET') {
       const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-      const monthParam = url.searchParams.get('month'); // YYYY-MM optional
-      const now = new Date();
-      const since = new Date();
-      since.setDate(since.getDate() - 30);
+      const period = parseInt(url.searchParams.get('period') || '30', 10);
+      const days = isNaN(period) || period <= 0 ? 30 : Math.min(period, 90);
 
-      // Defaults to avoid NaN in UI
-      let todayViews = 0;
-      let todayVisitors = 0;
-      let totalViews30Days = 0;
-      let avgViewsPerDay = 0;
-      let viewsGrowth = 0;
-      let visitorsGrowth = 0;
-      let bounceRate = 0;
-      let avgSessionDuration = '0:00';
+      // Defaults
+      let kpis = {
+        todayViews: 0,
+        todayVisitors: 0,
+        totalViews30Days: 0,
+        totalVisitors30Days: 0,
+        avgViewsPerDay: 0,
+        avgVisitorsPerDay: 0,
+        viewsGrowth: 0,
+        visitorsGrowth: 0,
+        bounceRate: 0,
+        avgSessionDuration: '0:00'
+      };
+      let dailyStats = [];
       let topPages = [];
+      let devices = { desktop: 0, mobile: 0, tablet: 0 };
       let locations = [];
 
-      // Try detailed pageviews table first
-      let usedMonthlyFallback = false;
       try {
-        // If month provided, bound to that month
-        let query = supabase
-          .from('analytics_pageviews')
-          .select('*');
-        if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
-          query = query.like('created_at', `${monthParam}%`);
-        } else {
-          query = query.gte('created_at', since.toISOString());
-        }
-        const { data, error } = await query;
-        if (error) throw error;
+        // 1) Pull last N days from daily_stats
+        const since = new Date();
+        since.setUTCDate(since.getUTCDate() - (days - 1));
+        const sinceStr = since.toISOString().slice(0, 10);
+        const { data: dsData } = await supabase
+          .from('daily_stats')
+          .select('*')
+          .gte('date', sinceStr)
+          .order('date', { ascending: true });
+        const rows = Array.isArray(dsData) ? dsData : [];
+        dailyStats = rows.map(r => ({
+          date: r.date,
+          total_views: Number(r.total_views) || 0,
+          unique_visitors: Number(r.unique_visitors) || 0,
+          bounce_rate: Number(r.bounce_rate) || 0,
+          avg_session_duration: Number(r.avg_session_duration) || 0
+        }));
 
-        const rows = Array.isArray(data) ? data : [];
-        totalViews30Days = rows.length;
-        avgViewsPerDay = Math.round(totalViews30Days / 30);
+        // KPIs from daily_stats
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const todayRow = dailyStats.find(d => d.date === todayStr);
+        const lastNDays = dailyStats.slice(-days);
+        const prevNDays = dailyStats.slice(-(2*days), -days);
 
-        // Today views (UTC date prefix compare)
-        const todayPrefix = now.toISOString().slice(0, 10);
-        todayViews = rows.filter(r => (r.created_at || '').startsWith(todayPrefix)).length;
+        const sum = (arr, f) => arr.reduce((s, x) => s + (Number(f(x)) || 0), 0);
+        const avg = (arr, f) => arr.length ? Math.round(sum(arr, f) / arr.length) : 0;
 
-        // Visitors approximated by unique session_id (if present)
-        const todaySessions = new Set();
-        const monthSessions = new Set();
-        for (const r of rows) {
-          const sid = r.session_id || null;
-          if (!sid) continue;
-          monthSessions.add(sid);
-          if ((r.created_at || '').startsWith(todayPrefix)) todaySessions.add(sid);
-        }
-        todayVisitors = todaySessions.size;
-        // simple placeholder
-        visitorsGrowth = 0;
+        const totalViews = sum(lastNDays, x => x.total_views);
+        const totalVisitors = sum(lastNDays, x => x.unique_visitors);
+        const prevViews = sum(prevNDays, x => x.total_views) || 0;
+        const prevVisitors = sum(prevNDays, x => x.unique_visitors) || 0;
+        const pct = (a, b) => b > 0 ? Math.round(((a - b) / b) * 100) : 0;
 
-        // Build top pages by counts
-        const counts = new Map();
-        const countryCounts = new Map();
-        for (const r of rows) {
-          const p = r.page_path || r.page || '/';
-          counts.set(p, (counts.get(p) || 0) + 1);
+        kpis = {
+          todayViews: todayRow ? todayRow.total_views : 0,
+          todayVisitors: todayRow ? todayRow.unique_visitors : 0,
+          totalViews30Days: totalViews,
+          totalVisitors30Days: totalVisitors,
+          avgViewsPerDay: Math.round(totalViews / days),
+          avgVisitorsPerDay: Math.round(totalVisitors / days),
+          viewsGrowth: pct(totalViews, prevViews),
+          visitorsGrowth: pct(totalVisitors, prevVisitors),
+          bounceRate: Math.round(avg(lastNDays, x => x.bounce_rate)),
+          avgSessionDuration: (() => {
+            const secs = avg(lastNDays, x => x.avg_session_duration);
+            const m = Math.floor(secs / 60);
+            const s = String(secs % 60).padStart(2, '0');
+            return `${m}:${s}`;
+          })()
+        };
+
+        // 2) Top pages from top_pages already sorted desc by view_count
+        const { data: tpData } = await supabase
+          .from('top_pages')
+          .select('*')
+          .order('view_count', { ascending: false })
+          .limit(10);
+        topPages = Array.isArray(tpData) ? tpData.map(r => ({
+          path: r.path,
+          title: r.title,
+          view_count: Number(r.view_count) || 0
+        })) : [];
+
+        // 3) Devices and locations breakdown from page_views within period
+        const { data: pvData } = await supabase
+          .from('page_views')
+          .select('device_type, country, created_at')
+          .gte('created_at', since.toISOString());
+        const pvRows = Array.isArray(pvData) ? pvData : [];
+        const totalPV = pvRows.length || 1;
+        const devCounts = { desktop: 0, mobile: 0, tablet: 0 };
+        const locCounts = new Map();
+        for (const r of pvRows) {
+          const d = (r.device_type || '').toLowerCase();
+          if (d.includes('desktop')) devCounts.desktop++;
+          else if (d.includes('tablet')) devCounts.tablet++;
+          else devCounts.mobile++;
           const c = r.country || 'Unknown';
-          countryCounts.set(c, (countryCounts.get(c) || 0) + 1);
+          locCounts.set(c, (locCounts.get(c) || 0) + 1);
         }
-        topPages = Array.from(counts.entries())
-          .map(([page_path, views]) => ({ page_path, view_count: views }))
-          .sort((a, b) => b.view_count - a.view_count)
-          .slice(0, 10);
-        locations = Array.from(countryCounts.entries())
+        devices = {
+          desktop: Math.round((devCounts.desktop / totalPV) * 100),
+          mobile: Math.round((devCounts.mobile / totalPV) * 100),
+          tablet: Math.round((devCounts.tablet / totalPV) * 100)
+        };
+        locations = Array.from(locCounts.entries())
           .map(([country, visits]) => ({ country, visits }))
           .sort((a, b) => b.visits - a.visits)
           .slice(0, 20);
-      } catch (_) {
-        usedMonthlyFallback = true;
+      } catch (e) {
+        console.warn('dashboard build failed, returning safe defaults:', e.message);
       }
 
-      // Fallback: use monthly aggregate table if available
-      if (usedMonthlyFallback) {
-        try {
-          const ym = (d) => d.toISOString().slice(0,7); // YYYY-MM
-          const currentMonth = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : ym(now);
-          const prevMonth = ym(since);
-          const { data } = await supabase
-            .from('analytics_monthly')
-            .select('*')
-            .in('month', [prevMonth, currentMonth]);
-          const rows = Array.isArray(data) ? data : [];
-          // Sum views-like fields
-          totalViews30Days = rows.reduce((sum, r) => sum + (r.pageviews || r.views || 0), 0);
-          avgViewsPerDay = Math.round(totalViews30Days / 30);
-          todayViews = 0; // no daily resolution
-          todayVisitors = 0;
-          topPages = []; // not available from monthly aggregate
-          locations = [];
-        } catch (_) {
-          // keep defaults (zeros)
-        }
-      }
+      return res.status(200).json({ kpis, dailyStats, topPages, devices, locations });
+    }
 
-      return res.status(200).json({
-        kpis: {
-          todayViews,
-          viewsGrowth,
-          todayVisitors,
-          visitorsGrowth,
-          totalViews30Days,
-          avgViewsPerDay,
-          bounceRate,
-          avgSessionDuration
-        },
-        dailyStats: [],
-        topPages,
-        devices: { desktop: 0, mobile: 0, tablet: 0 },
-        locations
-      });
+    // POST /api/analytics/update-stats - trigger Supabase RPCs to rebuild aggregates
+    if (route === 'analytics/update-stats' && req.method === 'POST') {
+      try {
+        await supabase.rpc('update_daily_stats');
+      } catch (e) {
+        console.warn('update_daily_stats RPC failed:', e.message);
+      }
+      try {
+        await supabase.rpc('update_top_pages');
+      } catch (e) {
+        console.warn('update_top_pages RPC failed:', e.message);
+      }
+      return res.status(200).json({ ok: true });
     }
 
     // GET /api/articles/top - top articles by view_count desc (fallback to is_featured)
