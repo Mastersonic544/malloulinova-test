@@ -296,25 +296,26 @@ export default async function handler(req, res) {
       let clicks = [];
       try {
         // primary: click_events; fallback to analytics_clicks
-        let query = supabase
-          .from('click_events')
-          .select('*')
-          .eq('page_path', pagePath)
-          .order('created_at', { ascending: true });
-
+        const base = supabase.from('click_events').select('*').eq('page_path', pagePath);
+        let query = base;
         if (month && /^\d{4}-\d{2}$/.test(month)) {
-          // Filter by month via string prefix match on created_at if stored as ISO string
-          query = query.like('created_at', `${month}%`);
+          const start = new Date(`${month}-01T00:00:00.000Z`);
+          const end = new Date(start);
+          end.setUTCMonth(end.getUTCMonth() + 1);
+          query = query.gte('created_at', start.toISOString()).lt('created_at', end.toISOString());
         }
+        query = query.order('created_at', { ascending: true });
         let { data, error } = await query;
         if (error) {
           // fallback try
-          let q2 = supabase
-            .from('analytics_clicks')
-            .select('*')
-            .eq('page_path', pagePath)
-            .order('created_at', { ascending: true });
-          if (month && /^\d{4}-\d{2}$/.test(month)) q2 = q2.like('created_at', `${month}%`);
+          let q2 = supabase.from('analytics_clicks').select('*').eq('page_path', pagePath);
+          if (month && /^\d{4}-\d{2}$/.test(month)) {
+            const start = new Date(`${month}-01T00:00:00.000Z`);
+            const end = new Date(start);
+            end.setUTCMonth(end.getUTCMonth() + 1);
+            q2 = q2.gte('created_at', start.toISOString()).lt('created_at', end.toISOString());
+          }
+          q2 = q2.order('created_at', { ascending: true });
           const r2 = await q2; data = r2.data; error = r2.error;
           if (error) throw error;
         }
@@ -333,6 +334,37 @@ export default async function handler(req, res) {
           sectionId: r.section_id,
           createdAt: r.created_at
         }));
+        // Fallback: some datasets may store home as '' or '/home'
+        if ((!clicks || clicks.length === 0) && pagePath === '/') {
+          const tryPaths = ['', '/home'];
+          for (const pth of tryPaths) {
+            let q = supabase.from('click_events').select('*').eq('page_path', pth).order('created_at', { ascending: true });
+            if (month && /^\d{4}-\d{2}$/.test(month)) {
+              const start = new Date(`${month}-01T00:00:00.000Z`);
+              const end = new Date(start); end.setUTCMonth(end.getUTCMonth() + 1);
+              q = q.gte('created_at', start.toISOString()).lt('created_at', end.toISOString());
+            }
+            const r = await q;
+            if (r?.data && r.data.length) {
+              clicks = r.data.map((r) => ({
+                id: r.id,
+                pagePath: r.page_path,
+                xPosition: r.x_pct,
+                yPosition: r.y_pct,
+                elementType: r.element_type,
+                elementText: r.element_text,
+                elementId: r.element_id,
+                elementClass: r.element_class,
+                viewportWidth: r.viewport_width,
+                viewportHeight: r.viewport_height,
+                scrollDepth: r.scroll_depth_pct,
+                sectionId: r.section_id,
+                createdAt: r.created_at
+              }));
+              break;
+            }
+          }
+        }
       } catch (e) {
         // Table may not exist in the current schema; return empty dataset instead of 500
         clicks = [];
@@ -417,16 +449,13 @@ export default async function handler(req, res) {
       let locations = [];
 
       try {
-        // 1) Pull last N days from daily_stats
-        const since = new Date();
-        since.setUTCDate(since.getUTCDate() - (days - 1));
-        const sinceStr = since.toISOString().slice(0, 10);
-        const { data: dsData } = await supabase
+        // 1) Pull exactly last N rows from daily_stats (order desc, limit, then reverse)
+        const { data: dsDesc } = await supabase
           .from('daily_stats')
           .select('*')
-          .gte('date', sinceStr)
-          .order('date', { ascending: true });
-        const rows = Array.isArray(dsData) ? dsData : [];
+          .order('date', { ascending: false })
+          .limit(days);
+        const rows = Array.isArray(dsDesc) ? dsDesc.sort((a,b) => (a.date > b.date ? 1 : -1)) : [];
         dailyStats = rows.map(r => ({
           date: r.date,
           total_views: Number(r.total_views) || 0,
@@ -468,12 +497,17 @@ export default async function handler(req, res) {
           })()
         };
 
-        // 2) Top pages from top_pages already sorted desc by view_count
-        const { data: tpData } = await supabase
-          .from('top_pages')
-          .select('*')
-          .order('view_count', { ascending: false })
-          .limit(10);
+        // 2) Top pages from top_pages already sorted; try to filter by month/date if available
+        let tpQuery = supabase.from('top_pages').select('*');
+        // Soft attempt: if table has 'month' column, prefer current month
+        try {
+          const monthCol = (await supabase.from('top_pages').select('month').limit(1)).data;
+          if (Array.isArray(monthCol) && monthCol.length && Object.prototype.hasOwnProperty.call(monthCol[0], 'month')) {
+            const ym = new Date().toISOString().slice(0,7);
+            tpQuery = tpQuery.eq('month', ym);
+          }
+        } catch {}
+        const { data: tpData } = await tpQuery.order('view_count', { ascending: false }).limit(10);
         topPages = Array.isArray(tpData) ? tpData.map(r => ({
           path: r.path,
           title: r.title,
@@ -481,6 +515,8 @@ export default async function handler(req, res) {
         })) : [];
 
         // 3) Devices and locations breakdown from page_views within period
+        const since = new Date();
+        since.setUTCDate(since.getUTCDate() - (days - 1));
         const { data: pvData } = await supabase
           .from('page_views')
           .select('device_type, country, created_at')
