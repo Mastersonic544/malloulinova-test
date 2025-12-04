@@ -464,6 +464,56 @@ export default async function handler(req, res) {
           avg_session_duration: Number(r.avg_session_duration) || 0
         }));
 
+        // Fallback: if we got fewer than requested days, rebuild from raw page_views
+        if (dailyStats.length < days) {
+          const since = new Date();
+          since.setUTCDate(since.getUTCDate() - (days - 1));
+          let pv = [];
+          try {
+            const r = await supabase
+              .from('page_views')
+              .select('created_at, session_id')
+              .gte('created_at', since.toISOString());
+            pv = Array.isArray(r.data) ? r.data : [];
+            if ((!pv || pv.length === 0) && r.error) throw r.error;
+          } catch (_) {
+            // Legacy fallback
+            try {
+              const r2 = await supabase
+                .from('analytics_pageviews')
+                .select('created_at, session_id')
+                .gte('created_at', since.toISOString());
+              pv = Array.isArray(r2.data) ? r2.data : [];
+            } catch {}
+          }
+          const buckets = new Map(); // YYYY-MM-DD -> { views, sessions:Set }
+          if (Array.isArray(pv)) {
+            for (const r of pv) {
+              const d = (r.created_at || '').slice(0, 10);
+              if (!buckets.has(d)) buckets.set(d, { views: 0, sessions: new Set() });
+              const b = buckets.get(d);
+              b.views += 1;
+              if (r.session_id) b.sessions.add(r.session_id);
+            }
+          }
+          // produce last N days, filling blanks with zeros
+          const out = [];
+          for (let i = days - 1; i >= 0; i--) {
+            const dt = new Date();
+            dt.setUTCDate(dt.getUTCDate() - i);
+            const key = dt.toISOString().slice(0,10);
+            const b = buckets.get(key);
+            out.push({
+              date: key,
+              total_views: b ? b.views : 0,
+              unique_visitors: b ? b.sessions.size : 0,
+              bounce_rate: 0,
+              avg_session_duration: 0
+            });
+          }
+          dailyStats = out;
+        }
+
         // KPIs from daily_stats
         const todayStr = new Date().toISOString().slice(0, 10);
         const todayRow = dailyStats.find(d => d.date === todayStr);
@@ -509,19 +559,76 @@ export default async function handler(req, res) {
         } catch {}
         const { data: tpData } = await tpQuery.order('view_count', { ascending: false }).limit(10);
         topPages = Array.isArray(tpData) ? tpData.map(r => ({
-          path: r.path,
-          title: r.title,
+          path: r.path ?? null,
+          title: r.title ?? null,
           view_count: Number(r.view_count) || 0
         })) : [];
+        // Fallback: rebuild from page_views if missing essential fields or empty
+        const needsTPFallback = !topPages.length || topPages.every(p => (!p.path && !p.title));
+        if (needsTPFallback) {
+          const since = new Date();
+          since.setUTCDate(since.getUTCDate() - (days - 1));
+          let pv = [];
+          try {
+            const r = await supabase
+              .from('page_views')
+              .select('page_path, page_title, created_at')
+              .gte('created_at', since.toISOString());
+            pv = Array.isArray(r.data) ? r.data : [];
+            if ((!pv || pv.length === 0) && r.error) throw r.error;
+          } catch (_) {
+            // Legacy fallback
+            try {
+              const r2 = await supabase
+                .from('analytics_pageviews')
+                .select('page_path, page_title, created_at')
+                .gte('created_at', since.toISOString());
+              pv = Array.isArray(r2.data) ? r2.data : [];
+            } catch {}
+          }
+          const counts = new Map(); // path -> {views, title}
+          if (Array.isArray(pv)) {
+            for (const r of pv) {
+              const path = r.page_path || '/';
+              const cur = counts.get(path) || { views: 0, title: r.page_title || null };
+              cur.views += 1;
+              if (!cur.title && r.page_title) cur.title = r.page_title;
+              counts.set(path, cur);
+            }
+          }
+          topPages = Array.from(counts.entries())
+            .map(([path, v]) => ({ path, title: v.title, view_count: v.views }))
+            .sort((a,b) => b.view_count - a.view_count)
+            .slice(0, 10);
+        }
 
         // 3) Devices and locations breakdown from page_views within period
         const since = new Date();
         since.setUTCDate(since.getUTCDate() - (days - 1));
-        const { data: pvData } = await supabase
-          .from('page_views')
-          .select('device_type, country, created_at')
-          .gte('created_at', since.toISOString());
-        const pvRows = Array.isArray(pvData) ? pvData : [];
+        let pvRows = [];
+        try {
+          const r = await supabase
+            .from('page_views')
+            .select('device_type, country, created_at')
+            .gte('created_at', since.toISOString());
+          pvRows = Array.isArray(r.data) ? r.data : [];
+          if ((!pvRows || pvRows.length === 0) && r.error) throw r.error;
+        } catch (_) {
+          // Legacy fallback
+          try {
+            const r2 = await supabase
+              .from('analytics_pageviews')
+              .select('device_type, country, created_at, user_agent')
+              .gte('created_at', since.toISOString());
+            pvRows = Array.isArray(r2.data) ? r2.data : [];
+            // derive device_type from user_agent if missing
+            pvRows = pvRows.map(x => ({
+              device_type: x.device_type || (/Mobile|Android|iPhone/i.test(x.user_agent||'') ? 'mobile' : 'desktop'),
+              country: x.country,
+              created_at: x.created_at
+            }));
+          } catch {}
+        }
         const totalPV = pvRows.length || 1;
         const devCounts = { desktop: 0, mobile: 0, tablet: 0 };
         const locCounts = new Map();
