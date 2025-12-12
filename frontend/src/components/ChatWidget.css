@@ -9,11 +9,11 @@
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #447D9B 0%, #273F4F 100%);
-  border: none;
+  background: #447D9B;
+  border: 1px solid #000;
   font-size: 28px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(68, 125, 155, 0.4);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.22);
   z-index: 1050;
   animation: pulse 2s infinite;
   transition: transform 0.2s ease;
@@ -47,6 +47,13 @@
   z-index: 1000;
   overflow: hidden;
   font-family: 'Montserrat', Arial, sans-serif;
+}
+
+.chat-bubble-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 @media (max-width: 768px) {

@@ -138,7 +138,7 @@ export default function ChatWidget() {
           onClick={() => setIsOpen(true)}
           aria-label="Open chat"
         >
-          💬
+          <img src="/chat.png" alt="Open chat" className="chat-bubble-icon" />
         </button>
       )}
       
