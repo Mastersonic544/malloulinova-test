@@ -16,6 +16,7 @@ export default function ChatWidget() {
   useEffect(() => {
     const storedSessionId = sessionStorage.getItem('chatSessionId');
     const storedMessages = sessionStorage.getItem('chatMessages');
+    const isMobile = typeof window !== 'undefined' ? window.innerWidth <= 768 : false;
     
     if (storedSessionId) {
       setSessionId(storedSessionId);
@@ -37,8 +38,8 @@ export default function ChatWidget() {
       sessionStorage.setItem('chatMessages', JSON.stringify([greeting]));
     }
     
-    // Auto-open after 15 seconds on first visit
-    if (!sessionStorage.getItem('chatOpened')) {
+    // Auto-open after 15 seconds on first visit (skip on mobile to avoid covering screen)
+    if (!isMobile && !sessionStorage.getItem('chatOpened')) {
       setTimeout(() => {
         setIsOpen(true);
         sessionStorage.setItem('chatOpened', 'true');

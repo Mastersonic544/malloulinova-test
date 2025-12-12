@@ -121,6 +121,15 @@ const PublicSite = ({ onNavigate }) => {
 
   // Analytics tracking
   useEffect(() => {
+    const handleScrollButton = () => {
+      setShowBackToTop(window.scrollY > 300);
+    };
+    handleScrollButton();
+    window.addEventListener('scroll', handleScrollButton);
+    return () => window.removeEventListener('scroll', handleScrollButton);
+  }, []);
+
+  useEffect(() => {
     // Track page view
     trackPageView(window.location.pathname, document.title);
     
@@ -336,19 +345,6 @@ const PublicSite = ({ onNavigate }) => {
         contactLottieInstRef.current = null;
       }
       if (glowAnimRef.current) cancelAnimationFrame(glowAnimRef.current);
-
-      const handleScrollButton = () => {
-        if (window.scrollY > 300) {
-          setShowBackToTop(true);
-        } else {
-          setShowBackToTop(false);
-        }
-      };
-
-      window.addEventListener('scroll', handleScrollButton);
-      return () => {
-        window.removeEventListener('scroll', handleScrollButton);
-      };
     };
   }, []);
 

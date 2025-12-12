@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
+import { ResponsiveContainer, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Line, ComposedChart } from 'recharts';
 import { getDashboardData, getHeatmapData } from '../services/analyticsService.js';
-import { fetchTopArticles } from '../services/connectorService.js';
 
 const defaultKpis = {
   todayViews: 0,
@@ -21,11 +20,13 @@ const AnalyticsSection = ({ colors }) => {
     const m = String(d.getUTCMonth() + 1).padStart(2, '0');
     return `${y}-${m}`;
   });
+  const [chartPeriod, setChartPeriod] = useState('30days');
   const [kpis, setKpis] = useState(defaultKpis);
+  const [dailyStats, setDailyStats] = useState([]);
   const [topPages, setTopPages] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [devices, setDevices] = useState({ desktop: 0, mobile: 0, tablet: 0 });
   const [heatmapData, setHeatmapData] = useState({ clicks: [], sectionSummary: [], totalClicks: 0 });
-  const [topArticles, setTopArticles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -35,17 +36,17 @@ const AnalyticsSection = ({ colors }) => {
       setLoading(true);
       setError(null);
       try {
-        const [dash, heat, top] = await Promise.all([
-          getDashboardData(30),
-          getHeatmapData('/', selectedMonth),
-          fetchTopArticles(7, selectedMonth)
+        const [dash, heat] = await Promise.all([
+          getDashboardData(selectedMonth),
+          getHeatmapData('/', selectedMonth)
         ]);
         if (cancelled) return;
         setKpis(dash?.kpis || defaultKpis);
+        setDailyStats(dash?.dailyStats || []);
         setTopPages(dash?.topPages || []);
+        setDevices(dash?.devices || { desktop: 0, mobile: 0, tablet: 0 });
         setLocations(dash?.locations || []);
         setHeatmapData(heat || { clicks: [], sectionSummary: [], totalClicks: 0 });
-        setTopArticles(Array.isArray(top) ? top : []);
       } catch (e) {
         console.error('Failed to load analytics dashboard', e);
         if (!cancelled) setError('Failed to load analytics');
@@ -59,39 +60,17 @@ const AnalyticsSection = ({ colors }) => {
     };
   }, [selectedMonth]);
 
-  const buildTopArticlesBarData = useMemo(
-    () => () => {
-      if (!Array.isArray(topArticles)) return [];
-      return topArticles
-        .map((a) => ({
-          name: a.title || a.id,
-          value: typeof a.viewCount === 'number' ? a.viewCount : typeof a.views === 'number' ? a.views : 0
-        }))
-        .filter((x) => x.value > 0);
-    },
-    [topArticles]
-  );
-
-  const buildTopPagesPieData = (items) => {
-    if (!Array.isArray(items)) return [];
-    const totals = new Map();
-    for (const p of items) {
-      const rawName = p?.page_title || p?.title || p?.page_path || 'Unknown';
-      const path = (p?.page_path || rawName || '').toString().toLowerCase();
-      const value = typeof p?.view_count === 'number' ? p.view_count : p?.views || 0;
-      if (!value) continue;
-      let key = '';
-      if (path === '/' || path === '') key = 'Home';
-      else if (path === '/projects' || path.startsWith('/projects/')) key = 'Projects';
-      else if (path === '/articles' || path.startsWith('/articles/')) key = 'Projects';
-      else continue;
-      totals.set(key, (totals.get(key) || 0) + value);
-    }
-    return Array.from(totals.entries())
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 6);
-  };
+  const chartData = useMemo(() => {
+    if (!Array.isArray(dailyStats)) return [];
+    const take = chartPeriod === '7days' ? 7 : 30;
+    return dailyStats
+      .slice(-take)
+      .map((d) => ({
+        date: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        total_views: d.total_views || 0,
+        unique_visitors: d.unique_visitors || 0
+      }));
+  }, [dailyStats, chartPeriod]);
 
   const sectionSummary = useMemo(() => {
     let sectionSummaryLocal = Array.isArray(heatmapData?.sectionSummary) ? heatmapData.sectionSummary : [];
@@ -164,13 +143,21 @@ const AnalyticsSection = ({ colors }) => {
 
   return (
     <div style={{ borderRadius: 16, background: colors.card, padding: 18, boxShadow: colors.shadow, border: `1px solid ${colors.border}` }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
         <div>
           <h2 style={{ margin: 0, fontSize: 18, color: colors.dark }}>Analytics Overview</h2>
           {loading && <div style={{ fontSize: 12, color: colors.muted }}>Loading analytics…</div>}
           {error && <div style={{ fontSize: 12, color: '#b91c1c' }}>{error}</div>}
         </div>
-        <div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <select
+            value={chartPeriod}
+            onChange={(e) => setChartPeriod(e.target.value)}
+            style={{ padding: '8px 10px', borderRadius: 10, border: `1px solid ${colors.border}`, fontSize: 13 }}
+          >
+            <option value="7days">Last 7 days</option>
+            <option value="30days">Last 30 days</option>
+          </select>
           <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
@@ -262,53 +249,42 @@ const AnalyticsSection = ({ colors }) => {
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', marginBottom: '24px' }}>
         <div style={{ background: colors.card, borderRadius: '16px', padding: '20px', boxShadow: colors.shadow, border: `1px solid ${colors.border}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h3 style={{ margin: 0, color: colors.dark, fontSize: '1.1rem' }}>Top Articles by Views</h3>
+            <h3 style={{ margin: 0, color: colors.dark, fontSize: '1.1rem' }}>Views & Visitors</h3>
+            <span style={{ fontSize: 12, color: colors.muted }}>{chartPeriod === '7days' ? 'Last 7 days' : 'Last 30 days'}</span>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={buildTopArticlesBarData()} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={colors.border} />
-              <XAxis dataKey="name" hide />
-              <YAxis tick={{ fontSize: 12, fill: colors.muted }} allowDecimals={false} />
-              <Tooltip
-                formatter={(value) => [value, 'Views']}
-                contentStyle={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: '12px' }}
-              />
-              <Bar dataKey="value" name="Views" fill={colors.primary} radius={[4, 4, 0, 0]} maxBarSize={32} />
-            </BarChart>
-          </ResponsiveContainer>
+          {chartData.length ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={colors.border} />
+                <XAxis dataKey="date" tick={{ fontSize: 12, fill: colors.muted }} />
+                <YAxis tick={{ fontSize: 12, fill: colors.muted }} allowDecimals={false} />
+                <Tooltip contentStyle={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: '12px' }} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="total_views" name="Views" fill={colors.primary} radius={[4, 4, 0, 0]} maxBarSize={32} />
+                <Line dataKey="unique_visitors" name="Visitors" stroke={colors.accent} strokeWidth={3} dot={{ r: 3 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ fontSize: 13, color: colors.muted }}>No chart data yet.</div>
+          )}
         </div>
 
         <div style={{ background: colors.card, borderRadius: '16px', padding: '20px', boxShadow: colors.shadow, border: `1px solid ${colors.border}` }}>
           <h3 style={{ margin: '0 0 16px 0', color: colors.dark, fontSize: '1.1rem' }}>Top Pages</h3>
           {Array.isArray(topPages) && topPages.length > 0 ? (
-            <div style={{ width: '100%', height: 300 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={buildTopPagesPieData(topPages)}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={110}
-                    innerRadius={50}
-                    paddingAngle={2}
-                    label={false}
-                  >
-                    {buildTopPagesPieData(topPages).map((_, idx) => (
-                      <Cell
-                        key={`cell-${idx}`}
-                        fill={[colors.primary, colors.accent, '#34d399', '#f59e0b', '#6366f1', '#ef4444'][idx % 6]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value, name) => [value, name]}
-                    contentStyle={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: '12px' }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '12px' }} />
-                </PieChart>
-              </ResponsiveContainer>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {topPages.slice(0, 5).map((p, idx) => (
+                <div key={`${p.path || p.page_path || idx}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', border: `1px solid ${colors.border}`, borderRadius: 12, background: '#fff' }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: '#f4f4f5', display: 'grid', placeItems: 'center', color: colors.dark, fontWeight: 700 }}>{idx + 1}</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                      <strong style={{ color: colors.dark, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title || p.page_title || p.path || p.page_path || 'Unknown'}</strong>
+                      <span style={{ fontSize: 12, color: colors.muted }}>{p.path || p.page_path || '/'}</span>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 13, color: colors.dark, fontWeight: 700 }}>{typeof p.view_count === 'number' ? p.view_count : p.views || 0} views</span>
+                </div>
+              ))}
             </div>
           ) : (
             <div style={{ fontSize: 13, color: colors.muted }}>No page view data yet.</div>
@@ -376,6 +352,27 @@ const AnalyticsSection = ({ colors }) => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ background: colors.card, borderRadius: '16px', padding: '16px 20px', boxShadow: colors.shadow, border: `1px solid ${colors.border}` }}>
+            <h3 style={{ margin: '0 0 12px 0', color: colors.dark, fontSize: '1.1rem' }}>Devices</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {['desktop', 'mobile', 'tablet'].map((k) => {
+                const pct = Math.max(0, Math.min(100, devices?.[k] || 0));
+                const label = k.charAt(0).toUpperCase() + k.slice(1);
+                return (
+                  <div key={k}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: colors.text, marginBottom: 4 }}>
+                      <span>{label}</span>
+                      <span style={{ color: colors.muted }}>{pct}%</span>
+                    </div>
+                    <div style={{ height: 10, background: '#f3f4f6', borderRadius: 999, overflow: 'hidden', border: `1px solid ${colors.border}` }}>
+                      <div style={{ width: `${pct}%`, height: '100%', background: k === 'desktop' ? colors.primary : k === 'mobile' ? colors.accent : '#34d399', transition: 'width .2s ease' }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           <div style={{ background: colors.card, borderRadius: '16px', padding: '16px 20px', boxShadow: colors.shadow, border: `1px solid ${colors.border}` }}>
             <h3 style={{ margin: '0 0 12px 0', color: colors.dark, fontSize: '1.1rem' }}>Top Countries</h3>
             {Array.isArray(locations) && locations.length > 0 ? (
