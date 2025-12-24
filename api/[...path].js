@@ -821,6 +821,81 @@ export default async function handler(req, res) {
       return res.status(200).json(data || []);
     }
 
+    // POST /api/team - create team member
+    if (route === 'team' && req.method === 'POST') {
+      const { name, title = '', bio = '', linkedin = '', image_url = '', visible = true } = req.body || {};
+      if (!name) return res.status(400).json({ message: 'name is required' });
+
+      const now = new Date().toISOString();
+      const { data: maxPos } = await supabase
+        .from('team')
+        .select('position')
+        .order('position', { ascending: false })
+        .limit(1)
+        .single();
+      const position = (maxPos?.position || 0) + 1;
+
+      const { data, error } = await supabase
+        .from('team')
+        .insert({
+          id: randomUUID(),
+          name,
+          title,
+          bio,
+          linkedin,
+          image_url,
+          visible,
+          position,
+          created_at: now,
+          updated_at: now
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return res.status(201).json(data);
+    }
+
+    // PUT /api/team/order - update ordering
+    if (route === 'team/order' && req.method === 'PUT') {
+      const { orderedIds } = req.body || {};
+      if (!Array.isArray(orderedIds)) return res.status(400).json({ message: 'orderedIds must be an array' });
+      await Promise.all(
+        orderedIds.map((id, idx) => supabase.from('team').update({ position: idx }).eq('id', id))
+      );
+      return res.status(200).json({ success: true });
+    }
+
+    // PUT /api/team/:id - update team member
+    if (route.startsWith('team/') && req.method === 'PUT') {
+      const id = route.split('/')[1];
+      const { name, title, bio, linkedin, image_url, visible } = req.body || {};
+      const patch = { updated_at: new Date().toISOString() };
+      if (typeof name === 'string') patch.name = name;
+      if (typeof title === 'string') patch.title = title;
+      if (typeof bio === 'string') patch.bio = bio;
+      if (typeof linkedin === 'string') patch.linkedin = linkedin;
+      if (typeof image_url === 'string') patch.image_url = image_url;
+      if (typeof visible === 'boolean') patch.visible = visible;
+      if (Object.keys(patch).length === 1) return res.status(400).json({ message: 'No fields to update' });
+
+      const { data, error } = await supabase
+        .from('team')
+        .update(patch)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return res.status(200).json(data);
+    }
+
+    // DELETE /api/team/:id - delete team member
+    if (route.startsWith('team/') && req.method === 'DELETE') {
+      const id = route.split('/')[1];
+      const { error } = await supabase.from('team').delete().eq('id', id);
+      if (error) throw error;
+      return res.status(200).json({ success: true, id });
+    }
+
     // GET /api/services - list services (map to frontend fields, order by position ASC)
     if (route === 'services' && req.method === 'GET') {
       const { data, error } = await supabase
@@ -836,6 +911,77 @@ export default async function handler(req, res) {
         visible: r.visible !== false,
       }));
       return res.status(200).json(mapped);
+    }
+
+    // POST /api/services - create service
+    if (route === 'services' && req.method === 'POST') {
+      const { title, description = '', image_url = '', visible = true } = req.body || {};
+      if (!title) return res.status(400).json({ message: 'title is required' });
+
+      const now = new Date().toISOString();
+      const { data: maxPos } = await supabase
+        .from('services')
+        .select('position')
+        .order('position', { ascending: false })
+        .limit(1)
+        .single();
+      const position = (maxPos?.position || 0) + 1;
+
+      const { data, error } = await supabase
+        .from('services')
+        .insert({
+          id: randomUUID(),
+          title,
+          description,
+          image_url,
+          visible,
+          position,
+          created_at: now,
+          updated_at: now
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return res.status(201).json(data);
+    }
+
+    // PUT /api/services/order - update ordering
+    if (route === 'services/order' && req.method === 'PUT') {
+      const { orderedIds } = req.body || {};
+      if (!Array.isArray(orderedIds)) return res.status(400).json({ message: 'orderedIds must be an array' });
+      await Promise.all(
+        orderedIds.map((id, idx) => supabase.from('services').update({ position: idx }).eq('id', id))
+      );
+      return res.status(200).json({ success: true });
+    }
+
+    // PUT /api/services/:id - update service
+    if (route.startsWith('services/') && req.method === 'PUT') {
+      const id = route.split('/')[1];
+      const { title, description, image_url, visible } = req.body || {};
+      const patch = { updated_at: new Date().toISOString() };
+      if (typeof title === 'string') patch.title = title;
+      if (typeof description === 'string') patch.description = description;
+      if (typeof image_url === 'string') patch.image_url = image_url;
+      if (typeof visible === 'boolean') patch.visible = visible;
+      if (Object.keys(patch).length === 1) return res.status(400).json({ message: 'No fields to update' });
+
+      const { data, error } = await supabase
+        .from('services')
+        .update(patch)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return res.status(200).json(data);
+    }
+
+    // DELETE /api/services/:id - delete service
+    if (route.startsWith('services/') && req.method === 'DELETE') {
+      const id = route.split('/')[1];
+      const { error } = await supabase.from('services').delete().eq('id', id);
+      if (error) throw error;
+      return res.status(200).json({ success: true, id });
     }
 
     // GET /api/technologies - list technologies

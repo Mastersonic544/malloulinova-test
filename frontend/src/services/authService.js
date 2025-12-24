@@ -28,8 +28,7 @@ const signIn = async (email, password) => {
     console.error('Sign-in failed:', error);
     
     // Provide user-friendly error messages
-    let errorMessage = 'Authentication failed';
-    
+    let errorMessage;
     switch (error.code) {
       case 'auth/invalid-email':
         errorMessage = 'Invalid email address';
@@ -74,8 +73,7 @@ const signUp = async (email, password) => {
     console.error('Sign-up failed:', error);
     
     // Provide user-friendly error messages
-    let errorMessage = 'User creation failed';
-    
+    let errorMessage;
     switch (error.code) {
       case 'auth/email-already-in-use':
         errorMessage = 'Email address is already in use';

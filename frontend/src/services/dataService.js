@@ -69,7 +69,6 @@ const getProjects = (userId, callback) => {
  */
 const addProject = async (userId, projectData) => {
   try {
-    const projectsRef = getProjectsRTDBRef(userId);
     const newProjectRef = ref(db, `users/${userId}/projects`).push();
     
     const projectWithTimestamps = {

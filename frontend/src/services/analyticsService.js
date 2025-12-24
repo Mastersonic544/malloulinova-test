@@ -248,7 +248,6 @@ export const trackClick = async (event) => {
     const sessionId = getSessionId();
     
     // Calculate position as percentage
-    const rect = document.documentElement.getBoundingClientRect();
     const xPosition = Math.round((event.clientX / window.innerWidth) * 100);
     const yPosition = Math.round(((event.clientY + window.scrollY) / document.documentElement.scrollHeight) * 100);
     
