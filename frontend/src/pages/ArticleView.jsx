@@ -10,6 +10,16 @@ const ArticleView = ({ articleId, onNavigate }) => {
   const [likeCount, setLikeCount] = useState(0);
   const [liked, setLiked] = useState(false);
 
+  // Always start at top when navigating to a new article.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    const raf = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [articleId]);
+
   // Lightbox state for gallery
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
