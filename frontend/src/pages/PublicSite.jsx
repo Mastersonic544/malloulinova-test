@@ -361,6 +361,13 @@ const PublicSite = ({ onNavigate }) => {
     }
   };
 
+  const goToArticle = (id) => {
+    if (!id) return;
+    if (typeof onNavigate === 'function') {
+      onNavigate({ view: 'article', id });
+    }
+  };
+
   return (
     <div className="public-site" style={{ opacity: isVisible ? 1 : 0, transition: 'opacity 0.5s ease-in', fontFamily: 'Montserrat, Arial, sans-serif', color: '#273F4F' }}>
       <FutureHeader onNavigate={scrollToSection} />
@@ -472,14 +479,15 @@ const PublicSite = ({ onNavigate }) => {
                 </div>
               )}
               {featured.map((item) => (
-                <article key={item.id} style={{
+                <article key={item.id} className="project-card" role="button" tabIndex={0} onClick={() => goToArticle(item.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') goToArticle(item.id); }} style={{
                   background: '#fff',
                   borderRadius: 24,
                   border: '1px solid #e2e8f0',
                   boxShadow: '0 20px 45px rgba(15,23,42,0.08)',
                   overflow: 'hidden',
                   display: 'flex',
-                  flexDirection: 'column'
+                  flexDirection: 'column',
+                  cursor: 'pointer'
                 }}>
                   <div style={{ width: '100%', aspectRatio: '16/9', background: '#e2e8f0' }}>
                     {item.thumbnailUrl && (
@@ -490,7 +498,7 @@ const PublicSite = ({ onNavigate }) => {
                     <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748B', letterSpacing: '1px' }}>{item.category || 'Case Study'}</span>
                     <h3 style={{ margin: 0, fontSize: '1.4rem', color: '#0f172a' }}>{item.title}</h3>
                     <p style={{ margin: 0, color: '#475569', lineHeight: 1.6 }}>{makeShortDescription(item.fullBody || item.body || '')}</p>
-                    <button onClick={goToProjects} style={{
+                    <button onClick={(e) => { e.stopPropagation(); goToArticle(item.id); }} style={{
                       marginTop: 'auto',
                       alignSelf: 'flex-start',
                       padding: '0.65rem 1.25rem',
@@ -509,6 +517,29 @@ const PublicSite = ({ onNavigate }) => {
                 </article>
               ))}
             </div>
+
+            <style>{`
+              @media (max-width: 600px) {
+                .projects-grid {
+                  display: flex !important;
+                  grid-template-columns: none !important;
+                  gap: 1.25rem !important;
+                  overflow-x: auto;
+                  overflow-y: hidden;
+                  scroll-snap-type: x mandatory;
+                  -webkit-overflow-scrolling: touch;
+                  padding: 0.25rem 0.25rem 0.75rem;
+                  margin: 0 -0.25rem;
+                }
+                .projects-grid::-webkit-scrollbar { height: 8px; }
+                .projects-grid::-webkit-scrollbar-thumb { background: rgba(39, 63, 79, 0.25); border-radius: 999px; }
+                .project-card {
+                  flex: 0 0 82%;
+                  max-width: 82%;
+                  scroll-snap-align: center;
+                }
+              }
+            `}</style>
 
             <div style={{ textAlign: 'center', marginTop: '3rem' }}>
               <button onClick={goToProjects} style={{
