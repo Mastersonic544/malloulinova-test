@@ -6,7 +6,7 @@ const FutureHeader = ({ onNavigate }) => {
   const nav = [
     { id: 'hero', label: 'Home' },
     { id: 'projects', label: 'Projects' },
-    { id: 'founder', label: 'About Us' },
+    { id: 'team', label: 'About Us' },
     { id: 'contact', label: 'Contact Us' }
   ];
 
@@ -22,7 +22,7 @@ const FutureHeader = ({ onNavigate }) => {
         <div className="mn-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0' }}>
           {/* Left: Logo */}
           <div className="mn-header-logo" style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '120px' }}>
-            <img src={logoUrl} alt="Malloulinova" style={{ height: '60px', width: 'auto', userSelect: 'none' }} />
+            <img src={logoUrl} alt="MALOULINOVA" style={{ height: '60px', width: 'auto', userSelect: 'none' }} />
           </div>
 
           {/* Center: pill menu (desktop) */}
@@ -82,7 +82,7 @@ const FutureHeader = ({ onNavigate }) => {
         }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <img src={logoUrl} alt="Malloulinova" style={{ height: '28px' }} />
+                  <img src={logoUrl} alt="MALOULINOVA" style={{ height: '28px' }} />
                   <strong style={{ letterSpacing: '0.5px' }}>Menu</strong>
                 </div>
                 <button onClick={() => setMenuOpen(false)} style={{ background: 'transparent', border: '1px solid #334155', color: '#E2E8F0', height: '36px', width: '36px', borderRadius: '10px', cursor: 'pointer' }}>×</button>

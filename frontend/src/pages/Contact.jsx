@@ -130,7 +130,16 @@ const Contact = ({ onNavigate }) => {
       <header style={{ padding: '1.5rem 2rem', width: '100%', margin: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', boxSizing: 'border-box' }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto', width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
           <div style={{ cursor: 'pointer' }} onClick={() => onNavigate('/')}>
-            <img src={logoSvg} alt="Malloulinova Logo" style={{ height: '40px', filter: 'brightness(0) invert(1)' }} />
+            <svg width="180" height="40" viewBox="0 0 220 50" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="MALOULINOVA">
+              <g>
+                <path d="M12 11L22 6L32 11L32 23L22 28L12 23Z" stroke="#447D9B" strokeWidth="3.5" fill="none" />
+                <circle cx="22" cy="17" r="3" fill="#FE7743" />
+              </g>
+              <g>
+                <text x="45" y="22" fontFamily="Arial, Helvetica, sans-serif" fontSize="16" fontWeight="700" fill="#FFFFFF">MALOULINOVA</text>
+                <text x="45" y="35" fontFamily="Arial, Helvetica, sans-serif" fontSize="8" fontWeight="400" fill="#FFFFFF" opacity="0.8">EMBEDDED SYSTEMS &amp; IoT SOLUTIONS</text>
+              </g>
+            </svg>
           </div>
           <button onClick={() => onNavigate('/')} style={{ padding: '0.6rem 1.2rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 999, color: 'white', cursor: 'pointer', transition: 'all 0.3s' }}>
             ← Back to Home

@@ -150,7 +150,7 @@ export default function ChatWidget() {
             <div className="chat-header-content">
               <div className="chat-avatar">🤖</div>
               <div>
-                <h3>Malloulinova Assistant</h3>
+                <h3>MALOULINOVA Assistant</h3>
                 <p>IoT Consulting Expert</p>
               </div>
             </div>

@@ -19,6 +19,7 @@ import TechnologiesSection from '../components/public/TechnologiesSection.jsx';
 import KeyFeaturesSection from '../components/public/KeyFeaturesSection.jsx';
 import cursorNormal from '../../../assets/images/cursor/cursorNormal.png';
 import cursorSelect from '../../../assets/images/cursor/cursorSelect.png';
+import logoSvg from '../../../assets/images/logo.svg';
 import { makeShortDescription } from '../utils/preview.js';
 
 // Social icons for footer
@@ -98,9 +99,6 @@ const PublicSite = ({ onNavigate }) => {
   const contactLottieRef = useRef(null);
   const contactLottieInstRef = useRef(null);
   const [contactModalOpen, setContactModalOpen] = useState(false);
-  const [tnHover, setTnHover] = useState(false);
-  const [tzHover, setTzHover] = useState(false);
-  const [iotHover, setIotHover] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const glowRef = useRef(null);
   const glowAnimRef = useRef(0);
@@ -203,7 +201,7 @@ const PublicSite = ({ onNavigate }) => {
     // SEO: dynamic title & description for Home
     const prevTitle = document.title;
     const metaDesc = document.querySelector('meta[name="description"]') || (()=>{ const m=document.createElement('meta'); m.name='description'; document.head.appendChild(m); return m; })();
-    document.title = 'Malloulinova – Embedded & IoT Consulting (WMBUS, LoRaWAN, MIOTY)';
+    document.title = 'MALOULINOVA – Embedded & IoT Consulting (WMBUS, LoRaWAN, MIOTY)';
     metaDesc.setAttribute('content', 'Embedded systems & IoT experts. WMBUS, LoRaWAN, MIOTY, embedded connectivity, IoT backends, cloud integrations. Reduce development costs by 40–60%.');
     // Inject Services ItemList JSON-LD
     const ld = document.createElement('script');
@@ -361,6 +359,13 @@ const PublicSite = ({ onNavigate }) => {
     }
   };
 
+  const goToPath = (path) => {
+    if (!path) return;
+    if (typeof onNavigate === 'function') {
+      onNavigate(path);
+    }
+  };
+
   const goToArticle = (id) => {
     if (!id) return;
     if (typeof onNavigate === 'function') {
@@ -427,12 +432,6 @@ const PublicSite = ({ onNavigate }) => {
         <HeroSection
           sectionId="hero"
           lottieContainerRef={lottieContainerRef}
-          tnHover={tnHover}
-          setTnHover={setTnHover}
-          tzHover={tzHover}
-          setTzHover={setTzHover}
-          iotHover={iotHover}
-          setIotHover={setIotHover}
           countersRef={countersRef}
           goToProjects={goToProjects}
         />
@@ -742,20 +741,9 @@ const PublicSite = ({ onNavigate }) => {
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div className="footer-logo" style={{ marginBottom: '2rem' }}>
-            <svg width="220" height="50" viewBox="0 0 220 50" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Malloulinova">
-              <g id="logomark">
-                <path d="M12 11L22 6L32 11L32 23L22 28L12 23Z" stroke="#447D9B" strokeWidth="3.5" fill="none"/>
-                <circle cx="22" cy="17" r="3" fill="#FE7743"/>
-              </g>
-              <g id="wordmark">
-                <text x="45" y="22" fontFamily="Arial, Helvetica, sans-serif" fontSize="16" fontWeight="700" fill="#FFFFFF">
-                  MALLOULINOVA
-                </text>
-                <text x="45" y="35" fontFamily="Arial, Helvetica, sans-serif" fontSize="8" fontWeight="400" fill="#FFFFFF" opacity="0.8">
-                  EMBEDDED SYSTEMS &amp; IoT SOLUTIONS
-                </text>
-              </g>
-            </svg>
+            <div style={{ display: 'inline-flex', alignItems: 'center', padding: '10px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.92)', border: '1px solid rgba(255,255,255,0.25)' }}>
+              <img src={logoSvg} alt="MALOULINOVA" style={{ height: 48, width: 'auto', display: 'block' }} />
+            </div>
           </div>
           
           <div className="footer-content" style={{
@@ -853,11 +841,62 @@ const PublicSite = ({ onNavigate }) => {
             
             <div>
               <h4 style={{ marginBottom: '1.5rem', color: '#FE7743', fontSize: '1.2rem' }}>Legal</h4>
-              <p style={{ opacity: 0.8, fontSize: '0.9rem', lineHeight: '1.6' }}>
-                <span style={{ opacity: 0.6 }}>
-                  Privacy Policy | Terms of Service
-                </span>
-              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', alignItems: 'flex-start' }}>
+                <button
+                  type="button"
+                  onClick={() => goToPath('/privacy')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'white',
+                    cursor: 'pointer',
+                    opacity: 0.8,
+                    transition: 'all 0.3s ease',
+                    textAlign: 'left',
+                    padding: '0.3rem 0',
+                    fontSize: '1rem'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.opacity = '1';
+                    e.target.style.transform = 'translateX(5px)';
+                    e.target.style.color = '#FE7743';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.opacity = '0.8';
+                    e.target.style.transform = 'translateX(0)';
+                    e.target.style.color = 'white';
+                  }}
+                >
+                  → Privacy Policy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goToPath('/terms')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'white',
+                    cursor: 'pointer',
+                    opacity: 0.8,
+                    transition: 'all 0.3s ease',
+                    textAlign: 'left',
+                    padding: '0.3rem 0',
+                    fontSize: '1rem'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.opacity = '1';
+                    e.target.style.transform = 'translateX(5px)';
+                    e.target.style.color = '#FE7743';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.opacity = '0.8';
+                    e.target.style.transform = 'translateX(0)';
+                    e.target.style.color = 'white';
+                  }}
+                >
+                  → Terms of Service
+                </button>
+              </div>
             </div>
           </div>
         </div>

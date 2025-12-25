@@ -71,7 +71,16 @@ const MainDashboard = () => {
           }}
         >
           <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src={logoSvg} alt="Malloulinova" style={{ height: 48, filter: 'brightness(0) invert(1)' }} />
+            <svg width="180" height="40" viewBox="0 0 220 50" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="MALOULINOVA">
+              <g>
+                <path d="M12 11L22 6L32 11L32 23L22 28L12 23Z" stroke="#447D9B" strokeWidth="3.5" fill="none" />
+                <circle cx="22" cy="17" r="3" fill="#FE7743" />
+              </g>
+              <g>
+                <text x="45" y="22" fontFamily="Arial, Helvetica, sans-serif" fontSize="16" fontWeight="700" fill="#FFFFFF">MALOULINOVA</text>
+                <text x="45" y="35" fontFamily="Arial, Helvetica, sans-serif" fontSize="8" fontWeight="400" fill="#FFFFFF" opacity="0.8">EMBEDDED SYSTEMS &amp; IoT SOLUTIONS</text>
+              </g>
+            </svg>
           </div>
 
           <nav style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

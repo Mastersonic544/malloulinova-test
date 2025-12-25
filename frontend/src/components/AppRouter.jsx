@@ -11,6 +11,8 @@ import { makeShortDescription } from '../utils/preview.js';
 import ChatWidget from './ChatWidget.jsx';
 import AnimatedLogo from './AnimatedLogo.jsx';
 import logoSvg from '../../../assets/images/logo.svg';
+import PrivacyPolicy from '../pages/PrivacyPolicy.jsx';
+import TermsOfService from '../pages/TermsOfService.jsx';
 
 // Create User Context for global state management
 const UserContext = createContext();
@@ -79,7 +81,7 @@ const LoadingSpinner = () => (
     `}</style>
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '8px 12px', borderRadius: 12, background: 'rgba(241,245,249,0.6)', border: '1px solid #e5e7eb', animation: 'ld-fade-in 400ms ease both' }}>
       <AnimatedLogo size={24} spinDuration={4} spinDirection="normal" spinDelay="0s" initialRotate={15} style={{ opacity: 0.35, position: 'relative' }} />
-      <span style={{ fontSize: '15px', fontWeight: 600, letterSpacing: '0.3px' }}>MALLOULINOVA… website loading</span>
+      <span style={{ fontSize: '15px', fontWeight: 600, letterSpacing: '0.3px' }}>MALOULINOVA… website loading</span>
     </div>
   </div>
 );
@@ -235,7 +237,16 @@ const ProjectsView = ({ onNavigate }) => {
               flexShrink: 0
             }}
           >
-            <img src={logoSvg} alt="Malloulinova" style={{ height: '40px', filter: 'brightness(0) invert(1)' }} />
+            <svg width="180" height="40" viewBox="0 0 220 50" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="MALOULINOVA">
+              <g>
+                <path d="M12 11L22 6L32 11L32 23L22 28L12 23Z" stroke="#447D9B" strokeWidth="3.5" fill="none" />
+                <circle cx="22" cy="17" r="3" fill="#FE7743" />
+              </g>
+              <g>
+                <text x="45" y="22" fontFamily="Arial, Helvetica, sans-serif" fontSize="16" fontWeight="700" fill="#FFFFFF">MALOULINOVA</text>
+                <text x="45" y="35" fontFamily="Arial, Helvetica, sans-serif" fontSize="8" fontWeight="400" fill="#FFFFFF" opacity="0.8">EMBEDDED SYSTEMS &amp; IoT SOLUTIONS</text>
+              </g>
+            </svg>
           </div>
           
           {/* Page Title */}
@@ -378,7 +389,6 @@ const ProjectsView = ({ onNavigate }) => {
               font-size: 1.1rem !important;
             }
           }
-        }
         `}</style>
         {isLoading && <div style={{ textAlign: 'center', padding: '1rem' }}>Loading…</div>}
         {error && <div style={{ textAlign: 'center', color: '#ef4444' }}>{error}</div>}
@@ -525,7 +535,7 @@ const DashboardView = () => {
         <h3>Manage Featured Articles</h3>
         <p style={{ color: '#475569', marginTop: 0 }}>Select up to three articles to feature on Home.</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-          {MOCK_PROJECT_DATA.map(item => (
+          {data.map(item => (
             <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '0.5rem 0.6rem' }}>
               <input type="checkbox" checked={featuredIds.includes(item.id)} onChange={()=>toggleFeatured(item.id)} />
               <span style={{ fontSize: '0.95rem' }}>{item.id} — {item.title}</span>
@@ -593,6 +603,16 @@ const ContactRoute = () => {
   return <Contact onNavigate={(path) => navigate(path)} />;
 };
 
+const PrivacyRoute = () => {
+  const navigate = useNavigate();
+  return <PrivacyPolicy onNavigate={(path) => navigate(path)} />;
+};
+
+const TermsRoute = () => {
+  const navigate = useNavigate();
+  return <TermsOfService onNavigate={(path) => navigate(path)} />;
+};
+
 // Main App Component with proper URL routing
 const AppRouter = () => {
   const { isAuthLoading } = useUser();
@@ -606,6 +626,8 @@ const AppRouter = () => {
           <Route path="/projects" element={<ProjectsRoute />} />
           <Route path="/projects/:id" element={<ArticleRoute />} />
           <Route path="/contact" element={<ContactRoute />} />
+          <Route path="/privacy" element={<PrivacyRoute />} />
+          <Route path="/terms" element={<TermsRoute />} />
           <Route path="/admin" element={isAuthLoading ? <LoadingSpinner /> : <AdminRoute />} />
         </Routes>
       </main>

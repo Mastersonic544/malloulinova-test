@@ -150,7 +150,7 @@ const ArticleView = ({ articleId, onNavigate }) => {
       <div className="article-header" style={{ width: '100%', background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '1.5rem 2rem', margin: 0 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <div onClick={() => onNavigate('/')} style={{ cursor: 'pointer' }}>
-            <img src={logoSvg} alt="Malloulinova" style={{ height: '40px' }} />
+            <img src={logoSvg} alt="MALOULINOVA" style={{ height: '40px' }} />
           </div>
           <button className="back-btn" onClick={() => onNavigate('projects')} style={{ padding: '0.6rem 1rem', borderRadius: 12, border: '1px solid #e2e8f0', background: '#fff', color: '#273F4F', cursor: 'pointer', whiteSpace: 'nowrap' }}>← Back to Projects</button>
         </div>

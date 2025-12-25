@@ -1,8 +1,87 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import AnimatedLogo from '../AnimatedLogo.jsx';
 // No background logos here (non-white background)
 
-const HeroSection = ({ sectionId, lottieContainerRef, tnHover, setTnHover, tzHover, setTzHover, iotHover, setIotHover, countersRef, goToProjects }) => {
+const HeroSection = ({ sectionId, lottieContainerRef, countersRef, goToProjects }) => {
+  const [activeInfo, setActiveInfo] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => setIsMobile(window.innerWidth <= 900);
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    if (!activeInfo) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setActiveInfo(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [activeInfo]);
+
+  const infoItems = useMemo(() => ([
+    {
+      key: 'tn',
+      label: 'Tunisia-based',
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.9 }}>
+          <path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 1 1 18 0z"></path>
+          <circle cx="12" cy="10" r="3"></circle>
+        </svg>
+      ),
+      title: 'Tunisia-based team, global delivery',
+      subtitle: 'A cost-effective engineering hub with strong expertise and smooth collaboration with Europe.',
+      bullets: [
+        'Cost-effective development without compromising quality',
+        'Strong technical education and engineering expertise',
+        'Perfect time zone alignment with European clients',
+        'Cultural affinity and multilingual capabilities'
+      ]
+    },
+    {
+      key: 'tz',
+      label: 'European Time Zone',
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.9 }}>
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      ),
+      title: 'Workdays aligned with Europe',
+      subtitle: 'Fewer delays, fewer late meetings, and faster iteration cycles for European teams.',
+      bullets: [
+        'We operate within standard European working hours (CET/CEST), eliminating late-night meetings.',
+        'Decisions made in the morning are implemented by the afternoon, accelerating your project timeline.',
+        'Our team functions as a natural, effortless extension of your in-house European team.',
+        'Critical bugs are addressed during your active workday, minimizing delays and downtime.'
+      ]
+    },
+    {
+      key: 'iot',
+      label: 'IoT Specialists',
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.9 }}>
+          <path d="M18 6L6 18"></path>
+          <path d="M6 6l12 12"></path>
+        </svg>
+      ),
+      title: 'End-to-end embedded + IoT expertise',
+      subtitle: 'From firmware to connectivity, cloud, and scalable PoCs—delivered as complete solutions.',
+      bullets: [
+        'Expertise spans embedded firmware, connectivity layers, cloud backend, and data analytics.',
+        'We deliver complete, end-to-end solutions, not just isolated code modules.',
+        'Deep experience in key verticals like Smart Cities, Industry 4.0, and Smart Farming.',
+        'We excel at rapid prototyping and developing scalable Proofs of Concept (PoCs) efficiently.'
+      ]
+    }
+  ]), []);
+
+  const active = activeInfo ? infoItems.find((x) => x.key === activeInfo) : null;
+
   return (
     <section id="hero" data-section-id={sectionId || 'hero'} className="section hero-section" style={{
       minHeight: '90vh',
@@ -11,7 +90,7 @@ const HeroSection = ({ sectionId, lottieContainerRef, tnHover, setTnHover, tzHov
       gridTemplateAreas: '"text visual"',
       gap: '2rem',
       alignItems: 'center',
-      background: 'linear-gradient(180deg, #273F4F 0%, #447D9B 35%, #7FB0CE 55%, #ffffff 100%)',
+      background: 'linear-gradient(180deg, #273F4F 0%, #447D9B 35%, #7FB0CE 60%, #ffffff 100%)',
       color: 'white',
       padding: 0,
       paddingBottom: '1.5rem',
@@ -34,6 +113,157 @@ const HeroSection = ({ sectionId, lottieContainerRef, tnHover, setTnHover, tzHov
           position: absolute; inset: auto 0 0 0; height: 22%;
           background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.65) 55%, #ffffff 100%);
           pointer-events: none; z-index: 0;
+        }
+
+        .mn-hero-info {
+          display: flex;
+          gap: 1rem;
+          justify-content: center;
+          flex-wrap: wrap;
+          margin-bottom: 2rem;
+        }
+        .mn-info-btn {
+          -webkit-tap-highlight-color: transparent;
+          appearance: none;
+          border: 1px solid rgba(255,255,255,0.22);
+          background: rgba(255,255,255,0.08);
+          color: #fff;
+          border-radius: 999px;
+          padding: 0.55rem 0.95rem;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          cursor: pointer;
+          user-select: none;
+          transition:
+            transform 160ms ease,
+            background-color 160ms ease,
+            border-color 160ms ease,
+            box-shadow 160ms ease;
+          box-shadow: 0 0 0 rgba(0,0,0,0);
+        }
+        .mn-info-btn:hover {
+          background: rgba(255,255,255,0.12);
+          border-color: rgba(255,255,255,0.34);
+          transform: translateY(-1px);
+          box-shadow: 0 10px 26px rgba(0,0,0,0.22);
+        }
+        .mn-info-btn:active {
+          transform: translateY(0) scale(0.98);
+          box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+        }
+        .mn-info-btn:focus-visible {
+          outline: 3px solid rgba(254,119,67,0.45);
+          outline-offset: 3px;
+        }
+
+        .mn-info-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(15, 23, 42, 0.6);
+          backdrop-filter: blur(6px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 18px;
+          z-index: 2000;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 180ms ease;
+        }
+        .mn-info-overlay[data-open='true'] {
+          opacity: 1;
+          pointer-events: auto;
+        }
+        .mn-info-card {
+          width: min(720px, 92vw);
+          background: #ffffff;
+          color: #0f172a;
+          border-radius: 18px;
+          border: 1px solid rgba(68,125,155,0.25);
+          box-shadow: 0 22px 60px rgba(0,0,0,0.35);
+          transform: translateY(10px) scale(0.985);
+          transition: transform 180ms ease;
+          overflow: hidden;
+        }
+        .mn-info-overlay[data-open='true'] .mn-info-card {
+          transform: translateY(0) scale(1);
+        }
+        .mn-info-card__top {
+          position: relative;
+          padding: 18px 18px 14px;
+          background: linear-gradient(180deg, rgba(39,63,79,0.08) 0%, rgba(68,125,155,0.06) 100%);
+          border-bottom: 1px solid rgba(68,125,155,0.18);
+        }
+        .mn-info-close {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          height: 36px;
+          width: 36px;
+          border-radius: 12px;
+          border: 1px solid rgba(15,23,42,0.12);
+          background: #ffffff;
+          color: #0f172a;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+        }
+        .mn-info-close:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 10px 22px rgba(15,23,42,0.12);
+        }
+        .mn-info-close:active {
+          transform: scale(0.98);
+        }
+        .mn-info-card__body {
+          padding: 16px 18px 18px;
+        }
+        .mn-info-title {
+          margin: 0;
+          font-size: 1.25rem;
+          font-weight: 800;
+          color: #273F4F;
+          padding-right: 44px;
+        }
+        .mn-info-subtitle {
+          margin: 8px 0 0;
+          color: #334155;
+          line-height: 1.55;
+          font-size: 0.98rem;
+        }
+        .mn-info-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          margin-top: 14px;
+        }
+        .mn-info-pill {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          padding: 12px 12px;
+          border-radius: 14px;
+          background: #EDF5FA;
+          border: 1px solid rgba(68,125,155,0.18);
+          color: #0f172a;
+          line-height: 1.4;
+          font-size: 0.95rem;
+        }
+        .mn-info-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 999px;
+          margin-top: 5px;
+          background: #FE7743;
+          box-shadow: 0 0 0 4px rgba(254,119,67,0.18);
+          flex: 0 0 auto;
+        }
+        @media (max-width: 700px) {
+          .mn-info-grid { grid-template-columns: 1fr; }
+          .mn-info-card { width: min(560px, 94vw); }
         }
         @media (min-width: 1600px) {
           .hero-section {
@@ -95,149 +325,58 @@ const HeroSection = ({ sectionId, lottieContainerRef, tnHover, setTnHover, tzHov
           Reduce development costs by 40-60% with our expertise in embedded connectivity (WMBUS, LoRaWAN, MIOTY) and IoT ecosystems.
         </p>
 
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '2rem', position: 'relative' }}>
-          <div 
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.9rem', backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: '999px' }}
-            onMouseEnter={(e)=>{ setTnHover(true); e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,0.25)'; e.currentTarget.style.transform='translateY(-2px)'; }}
-            onMouseLeave={(e)=>{ setTnHover(false); e.currentTarget.style.boxShadow='none'; e.currentTarget.style.transform='translateY(0)'; }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.9 }}>
-              <path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 1 1 18 0z"></path>
-              <circle cx="12" cy="10" r="3"></circle>
-            </svg>
-            <span style={{ fontSize: '0.9rem', opacity: 0.95 }}>Tunisia-based</span>
-          </div>
-          <div 
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.9rem', backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: '999px' }}
-            onMouseEnter={(e)=>{ setTzHover(true); e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,0.25)'; e.currentTarget.style.transform='translateY(-2px)'; }}
-            onMouseLeave={(e)=>{ setTzHover(false); e.currentTarget.style.boxShadow='none'; e.currentTarget.style.transform='translateY(0)'; }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.9 }}>
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            <span style={{ fontSize: '0.9rem', opacity: 0.95 }}>European Time Zone</span>
-          </div>
-          <div 
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.9rem', backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: '999px' }}
-            onMouseEnter={(e)=>{ setIotHover(true); e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,0.25)'; e.currentTarget.style.transform='translateY(-2px)'; }}
-            onMouseLeave={(e)=>{ setIotHover(false); e.currentTarget.style.boxShadow='none'; e.currentTarget.style.transform='translateY(0)'; }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.9 }}>
-              <path d="M18 6L6 18"></path>
-              <path d="M6 6l12 12"></path>
-            </svg>
-            <span style={{ fontSize: '0.9rem', opacity: 0.95 }}>IoT Specialists</span>
-          </div>
+        <div className="mn-hero-info">
+          {infoItems.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className="mn-info-btn"
+              onClick={() => setActiveInfo(item.key)}
+              aria-haspopup="dialog"
+              aria-expanded={activeInfo === item.key}
+            >
+              {item.icon}
+              <span style={{ fontSize: '0.9rem', opacity: 0.95, fontWeight: 650 }}>{item.label}</span>
+            </button>
+          ))}
+        </div>
 
-          <div
-            onMouseEnter={()=> setTnHover(true)}
-            onMouseLeave={()=> setTnHover(false)}
-            style={{
-              position: 'absolute',
-              left: '55%',
-              top: 'calc(100% + 8px)',
-              transform: 'translateX(-50%)',
-              width: 'min(820px, 92vw)',
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06))',
-              border: '1px solid rgba(255,255,255,0.22)',
-              borderLeft: '3px solid #FE7743',
-              borderRadius: '14px',
-              backdropFilter: 'blur(8px)',
-              boxShadow: '0 12px 36px rgba(0,0,0,0.25)',
-              padding: '1rem',
-              zIndex: 2,
-              pointerEvents: tnHover ? 'auto' : 'none',
-              opacity: tnHover ? 1 : 0,
-              transition: 'opacity .2s ease, transform .2s ease'
-            }}
-          >
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', alignItems: 'stretch' }}>
-              {[
-                'Cost-effective development without compromising quality',
-                'Strong technical education and engineering expertise',
-                'Perfect time zone alignment with European clients',
-                'Cultural affinity and multilingual capabilities'
-              ].map((t, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 12, padding: '10px 12px' }}>
-                  <span style={{ display: 'inline-flex', width: 8, height: 8, marginTop: 6, borderRadius: 999, background: '#FE7743', boxShadow: '0 0 0 3px rgba(254,119,67,0.25)' }} />
-                  <span style={{ opacity: 0.96 }}>{t}</span>
-                </div>
-              ))}
+        <div
+          className="mn-info-overlay"
+          data-open={active ? 'true' : 'false'}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setActiveInfo(null);
+          }}
+          role="dialog"
+          aria-modal={active ? 'true' : 'false'}
+          aria-hidden={active ? 'false' : 'true'}
+        >
+          <div className="mn-info-card" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="mn-info-card__top">
+              <button
+                type="button"
+                className="mn-info-close"
+                onClick={() => setActiveInfo(null)}
+                aria-label="Close"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+              <h3 className="mn-info-title">{active ? active.title : ''}</h3>
+              <p className="mn-info-subtitle">{active ? active.subtitle : ''}</p>
             </div>
-          </div>
-
-          <div
-            onMouseEnter={()=> setTzHover(true)}
-            onMouseLeave={()=> setTzHover(false)}
-            style={{
-              position: 'absolute',
-              left: '45%',
-              top: 'calc(100% + 8px)',
-              transform: 'translateX(-50%)',
-              width: 'min(820px, 92vw)',
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06))',
-              border: '1px solid rgba(255,255,255,0.22)',
-              borderLeft: '3px solid #FE7743',
-              borderRadius: '14px',
-              backdropFilter: 'blur(8px)',
-              boxShadow: '0 12px 36px rgba(0,0,0,0.25)',
-              padding: '1rem',
-              zIndex: 2,
-              pointerEvents: tzHover ? 'auto' : 'none',
-              opacity: tzHover ? 1 : 0,
-              transition: 'opacity .2s ease, transform .2s ease'
-            }}
-          >
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
-              {[
-                'We operate within standard European working hours (CET/CEST), eliminating late-night meetings.',
-                'Decisions made in the morning are implemented by the afternoon, accelerating your project timeline.',
-                'Our team functions as a natural, effortless extension of your in-house European team.',
-                'Critical bugs are addressed during your active workday, minimizing delays and downtime.'
-              ].map((t, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 12, padding: '10px 12px' }}>
-                  <span style={{ display: 'inline-flex', width: 8, height: 8, marginTop: 6, borderRadius: 999, background: '#FE7743', boxShadow: '0 0 0 3px rgba(254,119,67,0.25)' }} />
-                  <span style={{ opacity: 0.96 }}>{t}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div
-            onMouseEnter={()=> setIotHover(true)}
-            onMouseLeave={()=> setIotHover(false)}
-            style={{
-              position: 'absolute',
-              left: '50%',
-              top: 'calc(100% + 8px)',
-              transform: 'translateX(-50%)',
-              width: 'min(820px, 92vw)',
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06))',
-              border: '1px solid rgba(255,255,255,0.22)',
-              borderLeft: '3px solid #FE7743',
-              borderRadius: '14px',
-              backdropFilter: 'blur(8px)',
-              boxShadow: '0 12px 36px rgba(0,0,0,0.25)',
-              padding: '1rem',
-              zIndex: 2,
-              pointerEvents: iotHover ? 'auto' : 'none',
-              opacity: iotHover ? 1 : 0,
-              transition: 'opacity .2s ease, transform .2s ease'
-            }}
-          >
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
-              {[
-                'Expertise spans embedded firmware, connectivity layers, cloud backend, and data analytics.',
-                'We deliver complete, end-to-end solutions, not just isolated code modules.',
-                'Deep experience in key verticals like Smart Cities, Industry 4.0, and Smart Farming.',
-                'We excel at rapid prototyping and developing scalable Proofs of Concept (PoCs) efficiently.'
-              ].map((t, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 12, padding: '10px 12px' }}>
-                  <span style={{ display: 'inline-flex', width: 8, height: 8, marginTop: 6, borderRadius: 999, background: '#FE7743', boxShadow: '0 0 0 3px rgba(254,119,67,0.25)' }} />
-                  <span style={{ opacity: 0.96 }}>{t}</span>
-                </div>
-              ))}
+            <div className="mn-info-card__body">
+              <div className="mn-info-grid">
+                {(active?.bullets || []).map((t, i) => (
+                  <div key={i} className="mn-info-pill">
+                    <span className="mn-info-dot" />
+                    <span>{t}</span>
+                  </div>
+                ))}
+              </div>
+              {isMobile ? null : null}
             </div>
           </div>
         </div>
@@ -252,7 +391,7 @@ const HeroSection = ({ sectionId, lottieContainerRef, tnHover, setTnHover, tzHov
               <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#FE7743' }}>
                 <span ref={(el)=> { if (countersRef) countersRef.current[index] = el; }}>0{item.suffix}</span>
               </div>
-              <div style={{ fontSize: '1rem', opacity: 0.8 }}>{item.label}</div>
+              <div style={{ fontSize: '1rem', opacity: 0.86, textShadow: '0 2px 10px rgba(15,23,42,0.45)' }}>{item.label}</div>
             </div>
           ))}
         </div>
