@@ -1197,6 +1197,8 @@ export default async function handler(req, res) {
       const ua = req.headers['user-agent'] || '';
       const { name, email, company = '', message, website = '' } = req.body || {};
 
+      console.log('Contact handler v2 (SMTP-enabled) hit:', { hasBody: !!req.body, ip });
+
       // Honeypot
       if (website && String(website).trim() !== '') {
         return res.status(200).json({ ok: true });
@@ -1249,6 +1251,15 @@ export default async function handler(req, res) {
         const SMTP_USER = process.env.SMTP_USER;
         const SMTP_PASS = process.env.SMTP_PASS;
         const CONTACT_TO = process.env.CONTACT_TO;
+
+        console.log('SMTP config present:', {
+          host: SMTP_HOST || null,
+          port: SMTP_PORT,
+          hasUser: !!SMTP_USER,
+          hasPass: !!SMTP_PASS,
+          hasTo: !!CONTACT_TO
+        });
+
         if (SMTP_HOST && SMTP_USER && SMTP_PASS && CONTACT_TO) {
           const transporter = nodemailer.createTransport({
             host: SMTP_HOST,
@@ -1274,6 +1285,8 @@ export default async function handler(req, res) {
           } catch (sendErr) {
             console.warn('SMTP sendMail failed:', sendErr?.message || sendErr);
           }
+        } else {
+          console.warn('SMTP not attempted: missing one or more SMTP_HOST/SMTP_USER/SMTP_PASS/CONTACT_TO env vars');
         }
       } catch (e) {
         console.warn('Contact email failed:', e?.message || e);
