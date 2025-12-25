@@ -1,10 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 import Groq from 'groq-sdk';
+import nodemailer from 'nodemailer';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_MEDIA_BUCKET = process.env.SUPABASE_MEDIA_BUCKET || 'articles';
+
+const CONTACT_LIMIT = Number(process.env.CONTACT_LIMIT || 10);
+const CONTACT_WINDOW_MS = Number(process.env.CONTACT_WINDOW_MS || 60_000);
+const contactRate = new Map();
 
 // Initialize Groq client for chatbot
 const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
@@ -1188,12 +1193,93 @@ export default async function handler(req, res) {
 
     // POST /api/contact - Handle contact form
     if (route === 'contact' && req.method === 'POST') {
-      const { name, email, company, message, website } = req.body;
-      
-      // Here you can add email sending logic or save to database
-      console.log('Contact form submission:', { name, email, company, message, website });
-      
-      return res.status(200).json({ ok: true, message: 'Contact form received' });
+      const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '';
+      const ua = req.headers['user-agent'] || '';
+      const { name, email, company = '', message, website = '' } = req.body || {};
+
+      // Honeypot
+      if (website && String(website).trim() !== '') {
+        return res.status(200).json({ ok: true });
+      }
+
+      // Rate limit (in-memory, best-effort)
+      const nowTs = Date.now();
+      const rec = contactRate.get(ip) || { count: 0, ts: nowTs };
+      if (nowTs - rec.ts > CONTACT_WINDOW_MS) {
+        rec.count = 0;
+        rec.ts = nowTs;
+      }
+      rec.count += 1;
+      contactRate.set(ip, rec);
+      if (rec.count > CONTACT_LIMIT) {
+        return res.status(429).json({ message: 'Too many requests, please try again later.' });
+      }
+
+      // Basic validation
+      const isEmail = (v) => /.+@.+\..+/.test(String(v || ''));
+      if (!String(name || '').trim() || !isEmail(email) || !String(message || '').trim()) {
+        return res.status(400).json({ message: 'Invalid input. Name, valid email, and message are required.' });
+      }
+      if (String(message).length > 2000) {
+        return res.status(400).json({ message: 'Message is too long (max 2000 chars).' });
+      }
+
+      // Persist to Supabase (best-effort)
+      try {
+        const row = {
+          id: randomUUID(),
+          name,
+          email,
+          company,
+          message,
+          created_at: new Date().toISOString(),
+          ip,
+          user_agent: ua,
+        };
+        const { error: insErr } = await supabase.from('contacts').insert(row);
+        if (insErr) console.warn('Contact insert warning:', insErr.message || insErr);
+      } catch (e) {
+        console.warn('Contact insert failed:', e?.message || e);
+      }
+
+      // Email via SMTP (optional)
+      try {
+        const SMTP_HOST = process.env.SMTP_HOST;
+        const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+        const SMTP_USER = process.env.SMTP_USER;
+        const SMTP_PASS = process.env.SMTP_PASS;
+        const CONTACT_TO = process.env.CONTACT_TO;
+        if (SMTP_HOST && SMTP_USER && SMTP_PASS && CONTACT_TO) {
+          const transporter = nodemailer.createTransport({
+            host: SMTP_HOST,
+            port: SMTP_PORT,
+            secure: SMTP_PORT === 465,
+            auth: { user: SMTP_USER, pass: SMTP_PASS },
+            requireTLS: SMTP_PORT !== 465,
+          });
+
+          // Non-sensitive diagnostics
+          try {
+            await transporter.verify();
+            console.log('SMTP verify ok:', { host: SMTP_HOST, port: SMTP_PORT, secure: SMTP_PORT === 465, user: SMTP_USER });
+          } catch (verr) {
+            console.warn('SMTP verify failed:', { host: SMTP_HOST, port: SMTP_PORT, secure: SMTP_PORT === 465, user: SMTP_USER, error: verr?.message || verr });
+          }
+
+          const subject = `New Contact from ${name}`;
+          const text = `Name: ${name}\nEmail: ${email}\nCompany: ${company}\nIP: ${ip}\nUA: ${ua}\n\nMessage:\n${message}`;
+          try {
+            const info = await transporter.sendMail({ from: SMTP_USER, to: CONTACT_TO, subject, text });
+            console.log('SMTP sendMail ok:', { messageId: info?.messageId, accepted: info?.accepted, rejected: info?.rejected, response: info?.response });
+          } catch (sendErr) {
+            console.warn('SMTP sendMail failed:', sendErr?.message || sendErr);
+          }
+        }
+      } catch (e) {
+        console.warn('Contact email failed:', e?.message || e);
+      }
+
+      return res.status(200).json({ ok: true });
     }
 
     // 404 for unknown routes
