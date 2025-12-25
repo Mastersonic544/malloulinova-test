@@ -1043,70 +1043,210 @@ export default async function handler(req, res) {
         if (url) galleryImageUrls.push(url);
       }
 
-      const row = {
+      const documentFiles = findAll('documents');
+      const documentUrls = [];
+      for (let i = 0; i < documentFiles.length; i++) {
+        const d = documentFiles[i];
+        const url = await uploadFile(d, `${id}/documents/${i}-${d.originalFilename || 'document.pdf'}`);
+        if (url) documentUrls.push(url);
+      }
+
+      const rowDb = {
         id,
         title,
-        shortDescription,
+        short_description: shortDescription,
         body,
         category,
-        thumbnailUrl,
-        videoUrl,
-        galleryImageUrls,
-        isFeatured,
-        createdAt: now,
-        updatedAt: now
+        thumbnail_url: thumbnailUrl,
+        video_url: videoUrl,
+        gallery_image_urls: galleryImageUrls,
+        document_urls: documentUrls,
+        is_featured: isFeatured,
+        created_at: now,
+        updated_at: now
       };
 
-      const { error: insErr } = await supabase.from('articles').upsert(row);
+      const { data, error: insErr } = await supabase
+        .from('articles')
+        .insert(rowDb)
+        .select('*')
+        .single();
       if (insErr) throw insErr;
 
-      return res.status(201).json(row);
+      const out = {
+        id: data.id,
+        title: data.title,
+        shortDescription: data.short_description || '',
+        body: data.body || '',
+        category: data.category || 'Uncategorized',
+        thumbnailUrl: data.thumbnail_url || null,
+        videoUrl: data.video_url || null,
+        galleryImageUrls: Array.isArray(data.gallery_image_urls) ? data.gallery_image_urls : [],
+        documentUrls: Array.isArray(data.document_urls) ? data.document_urls : [],
+        isFeatured: !!data.is_featured,
+        tags: Array.isArray(data.tags) ? data.tags : [],
+        viewCount: typeof data.view_count === 'number' ? data.view_count : 0,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+
+      return res.status(201).json(out);
+    }
+
+    // PUT /api/articles/:id/media - Update article media (thumbnail/gallery/video/documents)
+    if (route.startsWith('articles/') && route.endsWith('/media') && req.method === 'PUT') {
+      const parts = route.split('/');
+      const id = parts[1];
+
+      const { fields, files } = await parseMultipartForm(req);
+      const clearGallery = fields.clearGallery;
+      const clearVideo = fields.clearVideo;
+      const clearDocuments = fields.clearDocuments;
+
+      const findFile = (name) => files.find((f) => f.fieldname === name);
+      const findAll = (name) => files.filter((f) => f.fieldname === name);
+      const thumbFile = findFile('thumbnail');
+      const videoFile = findFile('video');
+      const galleryFiles = findAll('gallery');
+      const documentFiles = findAll('documents');
+
+      const patch = { updated_at: new Date().toISOString() };
+
+      if (thumbFile) {
+        patch.thumbnail_url = await uploadFile(thumbFile, `${id}/thumbnail/${thumbFile.originalFilename || 'thumb'}`);
+      }
+      if (videoFile) {
+        patch.video_url = await uploadFile(videoFile, `${id}/video/${videoFile.originalFilename || 'video'}`);
+      }
+      if (galleryFiles && galleryFiles.length) {
+        const galleryImageUrls = [];
+        for (let i = 0; i < galleryFiles.length; i++) {
+          const g = galleryFiles[i];
+          const url = await uploadFile(g, `${id}/gallery/${i}-${g.originalFilename || 'image'}`);
+          if (url) galleryImageUrls.push(url);
+        }
+        patch.gallery_image_urls = galleryImageUrls;
+      }
+      if (String(clearGallery) === 'true') {
+        patch.gallery_image_urls = [];
+      }
+      if (String(clearVideo) === 'true') {
+        patch.video_url = null;
+      }
+
+      if (documentFiles && documentFiles.length) {
+        const documentUrls = [];
+        for (let i = 0; i < documentFiles.length; i++) {
+          const d = documentFiles[i];
+          const url = await uploadFile(d, `${id}/documents/${i}-${d.originalFilename || 'document.pdf'}`);
+          if (url) documentUrls.push(url);
+        }
+        patch.document_urls = documentUrls;
+      }
+      if (String(clearDocuments) === 'true') {
+        patch.document_urls = [];
+      }
+
+      if (Object.keys(patch).length === 1) {
+        return res.status(400).json({ message: 'No media provided' });
+      }
+
+      const { data, error } = await supabase
+        .from('articles')
+        .update(patch)
+        .eq('id', id)
+        .select('*')
+        .single();
+      if (error) throw error;
+
+      const out = {
+        id: data.id,
+        title: data.title,
+        shortDescription: data.short_description || '',
+        body: data.body || '',
+        category: data.category || 'Uncategorized',
+        thumbnailUrl: data.thumbnail_url || null,
+        videoUrl: data.video_url || null,
+        galleryImageUrls: Array.isArray(data.gallery_image_urls) ? data.gallery_image_urls : [],
+        documentUrls: Array.isArray(data.document_urls) ? data.document_urls : [],
+        isFeatured: !!data.is_featured,
+        tags: Array.isArray(data.tags) ? data.tags : [],
+        viewCount: typeof data.view_count === 'number' ? data.view_count : 0,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+      return res.status(200).json(out);
     }
 
     // PUT /api/articles/:id - Update article
     if (route.startsWith('articles/') && req.method === 'PUT') {
-      const id = route.split('/')[1];
-      const { title, shortDescription, body, category, isFeatured } = req.body;
+      const parts = route.split('/');
+      const id = parts[1];
+      if (parts.length !== 2) {
+        // prevent catching /articles/:id/media (handled above)
+        return res.status(404).json({ message: 'Not Found' });
+      }
 
-      const updates = {
-        title,
-        shortDescription,
-        body,
-        category,
-        isFeatured,
-        updatedAt: new Date().toISOString()
-      };
+      const { title, shortDescription, body, category, isFeatured, tags } = req.body || {};
+      const patch = { updated_at: new Date().toISOString() };
+      if (typeof title === 'string') patch.title = title;
+      if (typeof shortDescription === 'string') patch.short_description = shortDescription;
+      if (typeof body === 'string') patch.body = body;
+      if (typeof category === 'string') patch.category = category;
+      if (typeof isFeatured !== 'undefined') patch.is_featured = !!isFeatured;
+      if (Array.isArray(tags)) patch.tags = tags;
+      if (Object.keys(patch).length === 1) return res.status(400).json({ message: 'No updatable fields provided' });
 
       const { data, error } = await supabase
         .from('articles')
-        .update(updates)
+        .update(patch)
         .eq('id', id)
-        .select()
+        .select('*')
         .single();
 
       if (error) throw error;
-      return res.status(200).json(data);
+      const out = {
+        id: data.id,
+        title: data.title,
+        shortDescription: data.short_description || '',
+        body: data.body || '',
+        category: data.category || 'Uncategorized',
+        thumbnailUrl: data.thumbnail_url || null,
+        videoUrl: data.video_url || null,
+        galleryImageUrls: Array.isArray(data.gallery_image_urls) ? data.gallery_image_urls : [],
+        documentUrls: Array.isArray(data.document_urls) ? data.document_urls : [],
+        isFeatured: !!data.is_featured,
+        tags: Array.isArray(data.tags) ? data.tags : [],
+        viewCount: typeof data.view_count === 'number' ? data.view_count : 0,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+      return res.status(200).json(out);
     }
 
     // PUT /api/articles/featured - Update featured articles
     if (route === 'articles/featured' && req.method === 'PUT') {
-      const { featuredIds } = req.body;
-      
-      // First, unfeature all articles
-      await supabase
-        .from('articles')
-        .update({ isFeatured: false, updatedAt: new Date().toISOString() })
-        .neq('id', '');
+      const { featuredIds } = req.body || {};
+      if (!Array.isArray(featuredIds)) {
+        return res.status(400).json({ message: 'featuredIds must be an array' });
+      }
+      const ids = featuredIds.filter((x) => typeof x === 'string');
 
-      // Then feature the selected ones
-      if (featuredIds && featuredIds.length > 0) {
-        await supabase
+      const { error: clearErr } = await supabase
+        .from('articles')
+        .update({ is_featured: false, updated_at: new Date().toISOString() })
+        .eq('is_featured', true);
+      if (clearErr) throw clearErr;
+
+      if (ids.length > 0) {
+        const { error: onErr } = await supabase
           .from('articles')
-          .update({ isFeatured: true, updatedAt: new Date().toISOString() })
-          .in('id', featuredIds);
+          .update({ is_featured: true, updated_at: new Date().toISOString() })
+          .in('id', ids);
+        if (onErr) throw onErr;
       }
 
-      return res.status(200).json({ featuredIds });
+      return res.status(200).json({ featuredIds: ids });
     }
 
     // POST /api/chat - Chatbot endpoint
