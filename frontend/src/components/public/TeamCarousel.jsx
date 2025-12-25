@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 const SocialIcon = ({ platform }) => {
   const icons = {
@@ -14,6 +14,8 @@ const SocialIcon = ({ platform }) => {
 const TeamCarousel = ({ sectionId, members }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const viewportRef = useRef(null);
 
   const teamMembers = (Array.isArray(members) && members.length > 0 ? members.map(m => ({
     name: m.name,
@@ -29,6 +31,48 @@ const TeamCarousel = ({ sectionId, members }) => {
     return () => clearInterval(interval);
   }, [teamMembers.length, isHovering]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => {
+      try {
+        setIsMobile(window.innerWidth <= 900);
+      } catch {
+        setIsMobile(false);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    const el = viewportRef.current;
+    if (!el) return;
+    const w = el.clientWidth || 0;
+    el.scrollTo({ left: activeIndex * w, behavior: 'smooth' });
+  }, [activeIndex, isMobile]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    const el = viewportRef.current;
+    if (!el) return;
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const w = el.clientWidth || 1;
+        const idx = Math.round(el.scrollLeft / w);
+        if (idx !== activeIndex) setActiveIndex(idx);
+      });
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      el.removeEventListener('scroll', onScroll);
+    };
+  }, [activeIndex, isMobile]);
+
   const nextSlide = () => setActiveIndex((prev) => (prev + 1) % teamMembers.length);
   const prevSlide = () => setActiveIndex((prev) => (prev - 1 + teamMembers.length) % teamMembers.length);
 
@@ -36,8 +80,8 @@ const TeamCarousel = ({ sectionId, members }) => {
 
   return (
     <div data-section-id={sectionId || 'team'} style={{ maxWidth: '1200px', margin: '0 auto', position: 'relative' }} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}>
-      <div style={{ overflow: 'hidden', borderRadius: '20px', boxShadow: '0 20px 50px rgba(0, 0, 0, 0.1)' }}>
-        <div className="carousel-inner" style={{ display: 'flex', transition: 'transform 0.5s ease-in-out', transform: `translateX(-${activeIndex * 100}%)` }}>
+      <div ref={viewportRef} className="carousel-viewport" style={{ overflow: 'hidden', borderRadius: '20px', boxShadow: '0 20px 50px rgba(0, 0, 0, 0.1)' }}>
+        <div className="carousel-inner" style={{ display: 'flex', transition: isMobile ? 'none' : 'transform 0.5s ease-in-out', transform: isMobile ? 'none' : `translateX(-${activeIndex * 100}%)` }}>
           {teamMembers.map((member, index) => (
             <div key={index} className="carousel-slide" style={{ minWidth: '100%', boxSizing: 'border-box', display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '4rem', alignItems: 'center', background: '#EDF5FA', padding: '4rem' }}>
               <img src={member.image} alt={member.name} className="carousel-image" style={{ width: '100%', borderRadius: '15px', objectFit: 'cover', height: '400px' }} />
@@ -78,6 +122,16 @@ const TeamCarousel = ({ sectionId, members }) => {
         {activeIndex + 1} / {teamMembers.length}
       </div>
       <style>{`
+        @media (max-width: 900px) {
+          .carousel-viewport {
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+          }
+          .carousel-inner { scroll-snap-type: x mandatory; }
+          .carousel-slide { scroll-snap-align: start; }
+        }
         @media (max-width: 900px) {
           .carousel-slide { grid-template-columns: 1fr !important; gap: 2rem !important; padding: 2.5rem !important; text-align: center; }
           .carousel-slide > div { text-align: center !important; }

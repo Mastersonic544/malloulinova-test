@@ -113,7 +113,7 @@ const KeyFeaturesSection = ({ sectionId }) => {
   }, []);
 
   const renderCard = (item) => (
-    <div style={cardBaseStyle}>
+    <div style={{ ...cardBaseStyle, width: isMobile ? '260px' : cardBaseStyle.width, minHeight: isMobile ? '180px' : cardBaseStyle.minHeight, padding: isMobile ? '1.25rem' : cardBaseStyle.padding }}>
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
         {supportsMask ? renderIconMasked(item) : renderIconImg(item)}
       </div>
@@ -133,8 +133,8 @@ const KeyFeaturesSection = ({ sectionId }) => {
     }
   };
 
-  // Static, accessible layout for mobile or reduced motion
-  if (isMobile || isReducedMotion) {
+  // Static, accessible layout for reduced motion
+  if (isReducedMotion) {
     return (
       <section {...sectionProps}>
         <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 1.25rem' }}>
@@ -163,7 +163,7 @@ const KeyFeaturesSection = ({ sectionId }) => {
   }
 
   // 3D circular carousel for desktop
-  const radius = 190; // px
+  const radius = isMobile ? 135 : 190; // px
   const depthScale = 0.18;
 
   return (
@@ -180,7 +180,7 @@ const KeyFeaturesSection = ({ sectionId }) => {
         </h2>
         <div className="key-features-viewport" style={{
           position: 'relative',
-          height: '260px',
+          height: isMobile ? '240px' : '260px',
           maxWidth: '900px',
           margin: '0 auto',
           overflow: 'visible'

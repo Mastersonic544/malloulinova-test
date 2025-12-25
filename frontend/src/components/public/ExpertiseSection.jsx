@@ -51,7 +51,27 @@ const ExpertiseSection = ({ sectionId }) => {
           .services-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
           @media (max-width: 1200px) { .services-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
           @media (max-width: 900px) { .services-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-          @media (max-width: 600px) { .services-grid { grid-template-columns: 1fr; } }
+          @media (max-width: 600px) {
+            .services-grid {
+              display: flex !important;
+              grid-template-columns: none !important;
+              gap: 1.25rem !important;
+              overflow-x: auto;
+              overflow-y: hidden;
+              scroll-snap-type: x mandatory;
+              -webkit-overflow-scrolling: touch;
+              padding: 0.25rem 0.25rem 0.75rem;
+              margin: 0 -0.25rem;
+            }
+            .services-grid::-webkit-scrollbar { height: 8px; }
+            .services-grid::-webkit-scrollbar-thumb { background: rgba(39, 63, 79, 0.25); border-radius: 999px; }
+            .service-card {
+              flex: 0 0 82%;
+              max-width: 82%;
+              scroll-snap-align: center;
+              min-height: 420px;
+            }
+          }
         `}</style>
       </div>
       {/* No floating elements */}
